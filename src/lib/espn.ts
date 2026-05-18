@@ -5,7 +5,7 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
 /** Simple in-memory cache with TTL for client-side ESPN API calls. */
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 
-const CACHE_TTL_MS = 300_000; // 5 minutes — aligned with AUTO_REFRESH_SECONDS
+const CACHE_TTL_MS = 60_000; // 60 seconds — deduplicates rapid calls without serving stale data
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
