@@ -165,7 +165,14 @@ export default function AnalyticsPage() {
         orderBy("timestamp", "desc"),
         limit(maxResults)
       );
-      const snap = await getDocs(q);
+
+      // Fire all three Firestore queries in parallel
+      const [snap, lastVisitSnap, compactedSnap] = await Promise.all([
+        getDocs(q),
+        getDocs(query(collection(db, "analytics_last_visit"), orderBy("lastVisit", "desc"))),
+        getDocs(query(collection(db, "analytics_compacted"), orderBy("compactedAt", "desc"))),
+      ]);
+
       const events = snap.docs
         .map((d) => ({ id: d.id, ...d.data() } as Record<string, unknown>))
         .filter((e) => (e.timestamp as string) >= since);
@@ -232,10 +239,7 @@ export default function AnalyticsPage() {
         }
       }
 
-      // Fetch last-visit records
-      const lastVisitSnap = await getDocs(
-        query(collection(db, "analytics_last_visit"), orderBy("lastVisit", "desc"))
-      );
+      // Process last-visit records (already fetched above)
       const lastVisits = lastVisitSnap.docs.map((d) => ({
         uid: d.id,
         email: (d.data().email as string) || null,
@@ -243,10 +247,7 @@ export default function AnalyticsPage() {
         lastVisit: (d.data().lastVisit as string) || "",
       }));
 
-      // Fetch compacted tournament analytics
-      const compactedSnap = await getDocs(
-        query(collection(db, "analytics_compacted"), orderBy("compactedAt", "desc"))
-      );
+      // Process compacted tournament analytics (already fetched above)
       const compactedTournaments: CompactedTournament[] = compactedSnap.docs.map((d) => {
         const data = d.data();
         return {
