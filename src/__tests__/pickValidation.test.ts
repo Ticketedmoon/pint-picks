@@ -59,7 +59,7 @@ describe("validatePartyPicks", () => {
     mocks.getAllPicksForParty.mockResolvedValue({
       uid1: makePicksForUser({ groupA: "Player A" }),
     });
-    mocks.fetchLeaderboard.mockResolvedValue({ scores: [], cutLine: null, cutRound: null });
+    mocks.fetchLeaderboard.mockResolvedValue({ scores: [], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -76,7 +76,7 @@ describe("validatePartyPicks", () => {
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
       makeLeaderboardPlayer("Rory McIlroy"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -93,7 +93,7 @@ describe("validatePartyPicks", () => {
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
       makeLeaderboardPlayer("Rory McIlroy"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(false);
@@ -108,7 +108,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -120,7 +120,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Ludvig Åberg"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -132,7 +132,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Rory McIlroy"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -145,7 +145,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);
@@ -158,7 +158,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(false);
@@ -184,7 +184,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Scottie Scheffler"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(false);
@@ -197,7 +197,7 @@ describe("validatePartyPicks", () => {
     });
     mocks.fetchLeaderboard.mockResolvedValue({ scores: [
       makeLeaderboardPlayer("Ludvig Åberg"),
-    ], cutLine: null, cutRound: null });
+    ], cutLine: null, cutRound: null, coursePar: null });
 
     const result = await validatePartyPicks(party);
     expect(result.valid).toBe(true);

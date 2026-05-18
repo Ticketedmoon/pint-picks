@@ -22,6 +22,20 @@ interface AnalyticsData {
   recentEvents: Record<string, unknown>[];
   lastVisits: { uid: string; email: string | null; lastPage: string; lastVisit: string }[];
   dailyVisits: { date: string; label: string; count: number }[];
+  compactedTournaments: CompactedTournament[];
+}
+
+interface CompactedTournament {
+  partyId: string;
+  partyName: string;
+  tournamentName: string;
+  totalEvents: number;
+  byPage: Record<string, number>;
+  byBrowser: Record<string, number>;
+  byUser: Record<string, { email: string | null; views: number; clicks: number }>;
+  periodStart: string;
+  periodEnd: string;
+  compactedAt: string;
 }
 
 function sortedEntries(obj: Record<string, number>): [string, number][] {
@@ -229,6 +243,26 @@ export default function AnalyticsPage() {
         lastVisit: (d.data().lastVisit as string) || "",
       }));
 
+      // Fetch compacted tournament analytics
+      const compactedSnap = await getDocs(
+        query(collection(db, "analytics_compacted"), orderBy("compactedAt", "desc"))
+      );
+      const compactedTournaments: CompactedTournament[] = compactedSnap.docs.map((d) => {
+        const data = d.data();
+        return {
+          partyId: d.id,
+          partyName: (data.partyName as string) || "Unknown",
+          tournamentName: (data.tournamentName as string) || "Unknown",
+          totalEvents: (data.totalEvents as number) || 0,
+          byPage: (data.byPage as Record<string, number>) || {},
+          byBrowser: (data.byBrowser as Record<string, number>) || {},
+          byUser: (data.byUser as Record<string, { email: string | null; views: number; clicks: number }>) || {},
+          periodStart: (data.periodStart as string) || "",
+          periodEnd: (data.periodEnd as string) || "",
+          compactedAt: (data.compactedAt as string) || "",
+        };
+      });
+
       const dailyVisits = Object.entries(dailyBuckets).map(([date, count]) => {
         const d = new Date(date + "T12:00:00");
         const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -251,6 +285,7 @@ export default function AnalyticsPage() {
         recentEvents: events.slice(0, 50),
         lastVisits,
         dailyVisits,
+        compactedTournaments,
       };
 
       setData(result);
@@ -481,6 +516,41 @@ export default function AnalyticsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tournament History (compacted analytics) */}
+        {data.compactedTournaments.length > 0 && (
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">🏆 Tournament History</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Compacted analytics from completed tournaments</p>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {data.compactedTournaments.map((t) => (
+                <div key={t.partyId} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div>
+                      <span className="text-sm font-semibold text-gray-900">{t.partyName}</span>
+                      <span className="ml-2 text-xs text-gray-500">{t.tournamentName}</span>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(t.periodStart).toLocaleDateString()} — {new Date(t.periodEnd).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="text-gray-600"><span className="font-medium">{t.totalEvents}</span> events</span>
+                    <span className="text-gray-600"><span className="font-medium">{Object.keys(t.byUser).length}</span> users</span>
+                    <span className="text-gray-600"><span className="font-medium">{Object.keys(t.byPage).length}</span> pages</span>
+                    {Object.entries(t.byUser).slice(0, 3).map(([uid, u]) => (
+                      <span key={uid} className="text-gray-500">
+                        {u.email || uid.slice(0, 8)}: {u.views}v/{u.clicks}c
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

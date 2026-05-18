@@ -49,8 +49,8 @@ export const logger = {
  *   });
  */
 export async function withTiming<T>(
-  ctx: Omit<LogContext, "durationMs" | "status">,
-  fn: () => Promise<T & { status?: number }>,
+  ctx: LogContext,
+  fn: () => Promise<T>,
 ): Promise<T> {
   const start = Date.now();
   try {
