@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getPartiesForUser, deleteParty } from "@/lib/firestore";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { DashboardSkeleton } from "@/components/Skeletons";
 import Link from "next/link";
 import type { Party } from "@/types";
 
@@ -138,11 +139,7 @@ function DashboardContent() {
   const pastParties = parties.filter((p) => p.status === "complete");
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

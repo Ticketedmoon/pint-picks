@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { formatScoreToPar } from "@/lib/espn";
 import { isCutStatus } from "@/lib/scoring";
 import type { PlayerScore } from "@/types";
@@ -11,6 +11,13 @@ interface TournamentLeaderboardModalProps {
 }
 
 export function TournamentLeaderboardModal({ scores, onClose }: TournamentLeaderboardModalProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus the close button on mount for keyboard users
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
   // Close on Escape key
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -35,7 +42,7 @@ export function TournamentLeaderboardModal({ scores, onClose }: TournamentLeader
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Tournament Leaderboard" onClick={onClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" />
 
@@ -48,7 +55,9 @@ export function TournamentLeaderboardModal({ scores, onClose }: TournamentLeader
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5">
           <h2 className="text-base font-bold text-gray-900 sm:text-lg">🏌️ Tournament Leaderboard</h2>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
+            aria-label="Close leaderboard"
             className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

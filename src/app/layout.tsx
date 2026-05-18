@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
@@ -18,9 +18,31 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#16a34a",
+};
+
 export const metadata: Metadata = {
-  title: "BirdieBets",
+  title: {
+    default: "BirdieBets",
+    template: "%s | BirdieBets",
+  },
   description: "Pick your golfers, track the tournament, compete with friends",
+  openGraph: {
+    title: "BirdieBets",
+    description: "Pick your golfers, track the tournament, compete with friends",
+    type: "website",
+    siteName: "BirdieBets",
+  },
+  twitter: {
+    card: "summary",
+    title: "BirdieBets",
+    description: "Pick your golfers, track the tournament, compete with friends",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

@@ -1,0 +1,16 @@
+{
+  "name": "BirdieBets",
+  "short_name": "BirdieBets",
+  "description": "Pick your golfers, track the tournament, compete with friends",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

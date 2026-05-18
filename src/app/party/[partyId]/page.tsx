@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PartyPageSkeleton } from "@/components/Skeletons";
 import { useAuth } from "@/contexts/AuthContext";
 
 const LeaderboardCards = dynamic(() => import("@/components/party/LeaderboardCards").then(m => ({ default: m.LeaderboardCards })), { ssr: false });
@@ -138,7 +139,7 @@ function PartyContent() {
   }, [partyId]);
 
   const handleRefresh = async () => {
-    if (!party) return;
+    if (!party || refreshing) return;
     setRefreshing(true);
     try {
       // Re-sync party status on every refresh
@@ -228,7 +229,9 @@ function PartyContent() {
   const handleCopyInvite = () => {
     if (!party) return;
     const url = `${window.location.origin}/party/join?code=${party.inviteCode}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(url).catch(() => {
+      // Fallback: select the text in the input field if clipboard API fails
+    });
     setInviteCopied(true);
     setTimeout(() => setInviteCopied(false), COPY_FEEDBACK_MS);
   };
@@ -300,11 +303,7 @@ function PartyContent() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
-      </div>
-    );
+    return <PartyPageSkeleton />;
   }
 
   if (error || !party) {

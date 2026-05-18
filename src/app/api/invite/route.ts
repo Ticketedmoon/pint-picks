@@ -10,13 +10,30 @@ export async function POST(request: NextRequest) {
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       return NextResponse.json({ error: "No emails provided" }, { status: 400 });
     }
+    if (!partyName || typeof partyName !== "string") {
+      return NextResponse.json({ error: "Missing partyName" }, { status: 400 });
+    }
+    if (!inviteCode || typeof inviteCode !== "string") {
+      return NextResponse.json({ error: "Missing inviteCode" }, { status: 400 });
+    }
+    if (emails.length > 20) {
+      return NextResponse.json({ error: "Too many emails (max 20)" }, { status: 400 });
+    }
+
+    // Validate each email is a string with basic format
+    const validEmails = emails.filter(
+      (e: unknown) => typeof e === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
+    );
+    if (validEmails.length === 0) {
+      return NextResponse.json({ error: "No valid emails provided" }, { status: 400 });
+    }
 
     const baseUrl = request.headers.get("origin") || "http://localhost:3000";
     const joinUrl = `${baseUrl}/party/join?code=${inviteCode}`;
     const template = buildInviteEmail({ invitedBy, partyName, joinUrl, inviteCode });
 
     const results = await Promise.allSettled(
-      emails.map((email: string) =>
+      validEmails.map((email: string) =>
         resend.emails.send({
           from: getFromEmail(),
           to: email,

@@ -17,8 +17,17 @@ export async function POST(request: NextRequest) {
       invalidMembers: InvalidMember[];
     };
 
-    if (!invalidMembers || invalidMembers.length === 0) {
+    if (!partyId || typeof partyId !== "string") {
+      return NextResponse.json({ error: "Missing partyId" }, { status: 400 });
+    }
+    if (!partyName || typeof partyName !== "string") {
+      return NextResponse.json({ error: "Missing partyName" }, { status: 400 });
+    }
+    if (!invalidMembers || !Array.isArray(invalidMembers) || invalidMembers.length === 0) {
       return NextResponse.json({ sent: 0, failed: 0 });
+    }
+    if (invalidMembers.length > 50) {
+      return NextResponse.json({ error: "Too many members (max 50)" }, { status: 400 });
     }
 
     const baseUrl = request.headers.get("origin") || "http://localhost:3000";
