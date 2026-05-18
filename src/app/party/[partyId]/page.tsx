@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { LeaderboardCards } from "@/components/party/LeaderboardCards";
 import { LeaderboardTable } from "@/components/party/LeaderboardTable";
+import { TournamentLeaderboardModal } from "@/components/party/TournamentLeaderboardModal";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -52,6 +53,8 @@ function PartyContent() {
   const [currentRound, setCurrentRound] = useState<{ currentRound: number; displayRound: number; totalRounds: number; nextRoundTeeTime: string | null } | null>(null);
   const [cutLine, setCutLine] = useState<number | null>(null);
   const [cutRound, setCutRound] = useState<number | null>(null);
+  const [tournamentScores, setTournamentScores] = useState<PlayerScore[]>([]);
+  const [showTournamentLeaderboard, setShowTournamentLeaderboard] = useState(false);
 
   // Show email send results from create flow
   useEffect(() => {
@@ -77,6 +80,7 @@ function PartyContent() {
 
     setCutLine(leaderboardResult.cutLine);
     setCutRound(leaderboardResult.cutRound);
+    setTournamentScores(leaderboardResult.scores);
     return buildLeaderboardEntries(partyData, allPicks, usersInfo, leaderboardResult.scores, leaderboardResult.cutLine);
   };
 
@@ -422,6 +426,14 @@ function PartyContent() {
               No cut this tournament
             </span>
           )}
+          {tournamentScores.length > 0 && (
+            <button
+              onClick={() => setShowTournamentLeaderboard(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-800 shadow-sm transition-colors hover:bg-indigo-200"
+            >
+              🏌️ Tournament Leaderboard
+            </button>
+          )}
         </div>
       )}
 
@@ -713,6 +725,13 @@ function PartyContent() {
           </>
         )}
       </div>
+
+      {showTournamentLeaderboard && (
+        <TournamentLeaderboardModal
+          scores={tournamentScores}
+          onClose={() => setShowTournamentLeaderboard(false)}
+        />
+      )}
     </div>
   );
 }
