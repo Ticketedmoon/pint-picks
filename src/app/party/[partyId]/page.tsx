@@ -99,12 +99,15 @@ function PartyContent() {
         // Auto-sync party status with live ESPN tournament status
         const synced = await syncPartyStatus(p);
         setParty(synced);
-        const lb = await buildLeaderboard(synced);
+        // Fetch leaderboard and current round in parallel
+        const shouldFetchRound = synced.status === "locked" || synced.status === "complete";
+        const [lb] = await Promise.all([
+          buildLeaderboard(synced),
+          shouldFetchRound
+            ? fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {})
+            : Promise.resolve(),
+        ]);
         setLeaderboard(lb);
-        // Fetch current round info when tournament is in progress or complete
-        if (synced.status === "locked" || synced.status === "complete") {
-          fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {});
-        }
         setLastRefreshed(new Date());
         setCountdown(AUTO_REFRESH_SECONDS);
         setLoading(false);
@@ -122,11 +125,14 @@ function PartyContent() {
       // Re-sync party status on every refresh
       const synced = await syncPartyStatus(party);
       setParty(synced);
-      const lb = await buildLeaderboard(synced);
+      const shouldFetchRound = synced.status === "locked" || synced.status === "complete";
+      const [lb] = await Promise.all([
+        buildLeaderboard(synced),
+        shouldFetchRound
+          ? fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {})
+          : Promise.resolve(),
+      ]);
       setLeaderboard(lb);
-      if (synced.status === "locked" || synced.status === "complete") {
-        fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {});
-      }
       setLastRefreshed(new Date());
       setCountdown(AUTO_REFRESH_SECONDS);
     } catch (err) {
