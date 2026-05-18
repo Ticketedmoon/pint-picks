@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper functions ───
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function isPartyMember(partyId) {
+      return request.auth.uid in get(/databases/$(database)/documents/parties/$(partyId)).data.memberUids;
+    }
+
+    function isPartyCreator(partyId) {
+      return request.auth.uid == get(/databases/$(database)/documents/parties/$(partyId)).data.createdBy;
+    }
+
+    // ─── Users ───
+    // Users can read any profile (needed for leaderboard display names).
+    // Users can only write their own profile.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    // ─── Parties ───
+    match /parties/{partyId} {
+      // Any signed-in user can read a party (needed for join-by-code lookup).
+      // Any signed-in user can create a party.
+      // Only members can update (status sync, adding members via join).
+      // Only the creator can delete.
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isPartyMember(partyId);
+      allow delete: if isSignedIn() && isPartyCreator(partyId);
+
+      // ─── Picks (subcollection of party) ───
+      // Members can read all picks (needed for leaderboard).
+      // Users can only write their own picks.
+      match /picks/{uid} {
+        allow read: if isSignedIn() && isPartyMember(partyId);
+        allow write: if isSignedIn() && isOwner(uid) && isPartyMember(partyId);
+      }
+
+      // ─── Pick Unlocks (subcollection of party) ───
+      // Only party creator can create unlock tokens.
+      // The target user can read their own token (validated server-side).
+      // Server-side API route handles marking tokens as used.
+      match /pickUnlocks/{token} {
+        allow read: if isSignedIn() && isPartyMember(partyId);
+        allow create: if isSignedIn() && isPartyCreator(partyId);
+        allow update: if isSignedIn() && isPartyMember(partyId);
+        allow delete: if false;
+      }
+
+      // ─── Invites (subcollection of party) ───
+      // Members can read invites. Only creator can write.
+      match /invites/{email} {
+        allow read: if isSignedIn() && isPartyMember(partyId);
+        allow write: if isSignedIn() && isPartyCreator(partyId);
+      }
+    }
+
+    // ─── Analytics ───
+    // Any signed-in user can write analytics events (page views, clicks).
+    // Only the admin reads analytics (enforced in app code, not rules).
+    match /analytics/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ─── Analytics Last Visit ───
+    // Users can read/write their own last-visit record.
+    match /analytics_last_visit/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isOwner(uid);
+    }
+
+    // ─── Analytics Compacted ───
+    // Read-only for signed-in users. Written by compaction logic (client-side).
+    match /analytics_compacted/{partyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ─── Deny everything else ───
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
