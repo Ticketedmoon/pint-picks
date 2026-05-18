@@ -7,7 +7,7 @@ export function SkeletonLine({ className = "" }: { className?: string }) {
 /** Skeleton for the party leaderboard page. */
 export function PartyPageSkeleton() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6">
+    <div className="w-full px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
       {/* Header */}
       <div className="mb-6">
         <SkeletonLine className="h-8 w-48 sm:w-72 mb-2" />
@@ -80,7 +80,7 @@ export function PartyPageSkeleton() {
 /** Skeleton for the dashboard page. */
 export function DashboardSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6">
+    <div className="w-full px-6 py-8 sm:px-12 sm:py-12 lg:px-20">
       <SkeletonLine className="h-8 w-40 sm:w-56 mb-6" />
       {[1, 2, 3].map((i) => (
         <div key={i} className="mb-4 rounded-xl border border-gray-200 bg-white p-5 sm:p-6">

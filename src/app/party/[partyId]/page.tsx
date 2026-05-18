@@ -24,6 +24,7 @@ import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, l
 import { buildLeaderboardEntries } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
+import { usePageView } from "@/lib/usePageView";
 import type { LeaderboardEntry, LeaderboardResult, Party, PlayerScore } from "@/types";
 
 /** Fetch leaderboard via server-side API route (shared edge cache). */
@@ -51,6 +52,10 @@ function PartyContent() {
   const router = useRouter();
   const { user } = useAuth();
   const [party, setParty] = useState<Party | null>(null);
+
+  // Track page views under the tournament's analytics doc
+  usePageView(party?.tournamentId);
+
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

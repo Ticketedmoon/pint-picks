@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { doc, setDoc, increment } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 
 function parseBrowser(ua: string): string {
@@ -17,88 +17,101 @@ function parseBrowser(ua: string): string {
 }
 
 /**
- * Write analytics event directly to Firestore from the client.
- * Fire-and-forget - failures are silently ignored so analytics
- * never block or degrade the user experience.
+ * Derive the analytics document ID for this page view.
+ * - Party pages (/party/{id}/...) use {uid}_{tournamentId} (set later via context)
+ * - Everything else uses {uid}_general
  */
-function logEvent(data: Record<string, unknown>) {
+function getAnalyticsDocId(uid: string, pathname: string): string {
+  // Tournament-specific analytics are handled by the party page context.
+  // For now, all page views go to the general doc. The party page can
+  // override this by passing tournamentId to trackPageView.
+  return `${uid}_general`;
+}
+
+const DEBOUNCE_MS = 5_000;
+const DEBOUNCE_KEY = "analytics_debounce_ts";
+
+/**
+ * Aggregate analytics into a single Firestore document per user context.
+ * Uses setDoc with merge + increment for atomic counter updates.
+ * Fire-and-forget: failures are silently ignored.
+ */
+function trackPageView(uid: string, email: string | null, pathname: string, collectionName: string, docId: string) {
   try {
+    const lastWrite = parseInt(sessionStorage.getItem(DEBOUNCE_KEY) || "0", 10);
+    if (Date.now() - lastWrite < DEBOUNCE_MS) return;
+
     const db = getFirebaseDb();
-    const eventRef = doc(collection(db, "analytics"));
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    setDoc(eventRef, {
-      ...data,
-      browser: parseBrowser(ua),
-      userAgent: ua.slice(0, 256),
-      timestamp: new Date().toISOString(),
-    }).catch(() => {});
+    const browser = parseBrowser(typeof navigator !== "undefined" ? navigator.userAgent : "");
+    const today = new Date().toISOString().slice(0, 10);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown";
+
+    setDoc(doc(db, collectionName, docId), {
+      uid,
+      email: email || null,
+      totalViews: increment(1),
+      [`pages.${pathname.replace(/\//g, "_")}`]: increment(1),
+      [`browsers.${browser}`]: increment(1),
+      [`daily.${today}`]: increment(1),
+      timezone,
+      lastPage: pathname,
+      lastVisit: new Date().toISOString(),
+    }, { merge: true })
+      .then(() => sessionStorage.setItem(DEBOUNCE_KEY, String(Date.now())))
+      .catch((err) => console.error("[Analytics] Write failed:", err));
   } catch {
-    // Silently ignore - analytics should never break the app
+    // Silently ignore
   }
 }
 
-const LAST_VISIT_DEBOUNCE_MS = 3 * 60 * 1000;
-const LAST_VISIT_STORAGE_KEY = "analytics_last_visit_ts";
-
 /**
  * Hook that logs a page view on every route change.
+ * General views go to analytics_general/{uid}.
+ * Tournament views go to analytics_tournament/{uid}_{tournamentId}.
  */
-export function usePageView() {
+export function usePageView(tournamentId?: string) {
   const pathname = usePathname();
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!pathname) return;
-    logEvent({
-      type: "page_view",
-      page: pathname,
-      uid: user?.uid || undefined,
-      email: user?.email || undefined,
-    });
+    if (!pathname || !user?.uid) return;
 
-    // Upsert last-visit record, debounced to once per 3 minutes
-    if (user?.uid) {
-      try {
-        const lastWrite = parseInt(sessionStorage.getItem(LAST_VISIT_STORAGE_KEY) || "0", 10);
-        if (Date.now() - lastWrite < LAST_VISIT_DEBOUNCE_MS) return;
-
-        const db = getFirebaseDb();
-        setDoc(doc(db, "analytics_last_visit", user.uid), {
-          email: user.email || null,
-          lastPage: pathname,
-          lastVisit: new Date().toISOString(),
-        })
-          .then(() => sessionStorage.setItem(LAST_VISIT_STORAGE_KEY, String(Date.now())))
-          .catch(() => {});
-      } catch {
-        // Silently ignore
-      }
+    if (tournamentId) {
+      trackPageView(user.uid, user.email, pathname, "analytics_tournament", `${user.uid}_${tournamentId}`);
+    } else {
+      trackPageView(user.uid, user.email, pathname, "analytics_general", user.uid);
     }
-  }, [pathname, user?.uid, user?.email]);
+  }, [pathname, user?.uid, user?.email, tournamentId]);
 }
 
 /**
  * Hook that returns a trackClick function.
- * Call it on button/link clicks to log user interactions.
- *
- * Usage:
- *   const trackClick = useTrackClick();
- *   <button onClick={() => { trackClick("refresh_scores"); handleRefresh(); }}>
+ * Increments click counter on the same aggregated analytics doc.
  */
-export function useTrackClick() {
+export function useTrackClick(tournamentId?: string) {
   const pathname = usePathname();
   const { user } = useAuth();
 
   return useCallback(
     (action: string) => {
-      logEvent({
-        type: "click",
-        page: pathname || "unknown",
-        action,
-        uid: user?.uid || undefined,
-        email: user?.email || undefined,
-      });
+      if (!user?.uid) return;
+      try {
+        const db = getFirebaseDb();
+        const collectionName = tournamentId ? "analytics_tournament" : "analytics_general";
+        const docId = tournamentId ? `${user.uid}_${tournamentId}` : user.uid;
+
+        setDoc(doc(db, collectionName, docId), {
+          uid: user.uid,
+          email: user.email || null,
+          totalClicks: increment(1),
+          [`actions.${action}`]: increment(1),
+          lastAction: action,
+          lastActionAt: new Date().toISOString(),
+        }, { merge: true }).catch((err) => console.error("[Analytics] Click write failed:", err));
+      } catch {
+        // Silently ignore
+      }
     },
-    [pathname, user?.uid, user?.email]
+    [pathname, user?.uid, user?.email, tournamentId]
   );
 }

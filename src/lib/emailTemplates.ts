@@ -12,20 +12,27 @@ export function escapeHtml(str: string): string {
 
 // --- Shared email wrapper ---
 
-const FOOTER = `
-  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-  <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-    Golf Tourney Tracker - Pick your golfers, track tournaments, compete with friends.
-  </p>`;
+function buildFooter(unsubscribeUrl?: string): string {
+  const unsubLink = unsubscribeUrl
+    ? `<p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 8px;">
+        <a href="${escapeHtml(unsubscribeUrl)}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from emails</a>
+      </p>`
+    : "";
+  return `
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+    <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+      BirdieBets - Pick your golfers, track tournaments, compete with friends.
+    </p>${unsubLink}`;
+}
 
-function emailWrapper(icon: string, content: string): string {
+function emailWrapper(icon: string, content: string, unsubscribeUrl?: string): string {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
       <div style="text-align: center; margin-bottom: 24px;">
         <span style="font-size: 48px;">${icon}</span>
       </div>
       ${content}
-      ${FOOTER}
+      ${buildFooter(unsubscribeUrl)}
     </div>`;
 }
 
@@ -140,8 +147,9 @@ export function buildMajorReminderEmail(params: {
   courseName: string;
   startDate: string;
   createPartyUrl: string;
+  unsubscribeUrl?: string;
 }): { subject: string; html: string } {
-  const { displayName, tournamentName, courseName, startDate, createPartyUrl } = params;
+  const { displayName, tournamentName, courseName, startDate, createPartyUrl, unsubscribeUrl } = params;
   const dateStr = new Date(startDate).toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -171,6 +179,6 @@ export function buildMajorReminderEmail(params: {
         Don't miss out!
       </p>
       ${ctaButton(createPartyUrl, "Create a Party")}
-    `),
+    `, unsubscribeUrl),
   };
 }

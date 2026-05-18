@@ -173,4 +173,18 @@ describe("buildMajorReminderEmail", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("includes unsubscribe link when URL is provided", () => {
+    const { html } = buildMajorReminderEmail({
+      ...params,
+      unsubscribeUrl: "https://birdiebets.com/unsubscribe?uid=abc123",
+    });
+    expect(html).toContain("https://birdiebets.com/unsubscribe?uid=abc123");
+    expect(html).toContain("Unsubscribe from emails");
+  });
+
+  it("omits unsubscribe link when URL is not provided", () => {
+    const { html } = buildMajorReminderEmail(params);
+    expect(html).not.toContain("Unsubscribe");
+  });
 });

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -58,6 +59,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground" suppressHydrationWarning>
         <Providers>{children}</Providers>
+        <OfflineIndicator />
       </body>
     </html>
   );

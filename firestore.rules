@@ -70,23 +70,27 @@ service cloud.firestore {
 
     // ─── Analytics ───
     // Any signed-in user can write analytics events (page views, clicks).
-    // Only the admin reads analytics (enforced in app code, not rules).
-    match /analytics/{eventId} {
+    // Updates needed for increment() on aggregated docs.
+    // ─── Analytics General ───
+    // Per-user aggregated analytics for non-tournament browsing.
+    match /analytics_general/{uid} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if false;
+      allow create, update: if isSignedIn();
+      allow delete: if false;
     }
 
-    // ─── Analytics Last Visit ───
-    // Users can read/write their own last-visit record.
-    match /analytics_last_visit/{uid} {
+    // ─── Analytics Tournament ───
+    // Per-user per-tournament aggregated analytics.
+    match /analytics_tournament/{docId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && isOwner(uid);
+      allow create, update: if isSignedIn();
+      allow delete: if false;
     }
 
-    // ─── Analytics Compacted ───
-    // Read-only for signed-in users. Written by compaction logic (client-side).
-    match /analytics_compacted/{partyId} {
+    // ─── Major Notifications ───
+    // Tracks which majors have had reminder emails sent (prevents duplicates).
+    // Written by the server-side cron job, readable for admin visibility.
+    match /major_notifications/{eventId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if false;

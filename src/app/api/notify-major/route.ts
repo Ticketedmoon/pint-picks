@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildMajorReminderEmail } from "@/lib/emailTemplates";
@@ -49,12 +49,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ sent: 0, message: "No upcoming majors within notification window" });
     }
 
-    // Get all registered users from the users collection
+    // Filter out majors we've already notified about (one email per major per season)
     const db = getFirebaseDb();
+    const majorsToNotify = [];
+    for (const major of upcomingMajors) {
+      const notifDoc = await getDoc(doc(db, "major_notifications", major.id));
+      if (!notifDoc.exists()) {
+        majorsToNotify.push(major);
+      }
+    }
+
+    if (majorsToNotify.length === 0) {
+      logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, message: "All upcoming majors already notified" });
+      return NextResponse.json({ sent: 0, message: "Already sent notifications for these majors" });
+    }
+
+    // Get all registered users from the users collection
     const usersSnap = await getDocs(collection(db, "users"));
     const users = usersSnap.docs
-      .map((d) => ({ uid: d.id, email: d.data().email as string | null, displayName: d.data().displayName as string | null }))
-      .filter((u) => u.email);
+      .map((d) => ({ uid: d.id, email: d.data().email as string | null, displayName: d.data().displayName as string | null, emailOptOut: d.data().emailOptOut as boolean | undefined }))
+      .filter((u) => u.email && !u.emailOptOut);
 
     if (users.length === 0) {
       logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, message: "No users to notify" });
@@ -66,7 +80,7 @@ export async function POST(request: NextRequest) {
     let totalSent = 0;
     let totalFailed = 0;
 
-    for (const major of upcomingMajors) {
+    for (const major of majorsToNotify) {
       const results = await Promise.allSettled(
         users.map((user) => {
           const template = buildMajorReminderEmail({
@@ -75,6 +89,7 @@ export async function POST(request: NextRequest) {
             courseName: major.courseName,
             startDate: major.startDate,
             createPartyUrl: `${baseUrl}/party/create`,
+            unsubscribeUrl: `${baseUrl}/unsubscribe?uid=${user.uid}`,
           });
           return resend.emails.send({
             from: getFromEmail(),
@@ -87,6 +102,14 @@ export async function POST(request: NextRequest) {
 
       totalSent += results.filter((r) => r.status === "fulfilled").length;
       totalFailed += results.filter((r) => r.status === "rejected").length;
+
+      // Record that we've notified for this major (prevents duplicate sends)
+      await setDoc(doc(db, "major_notifications", major.id), {
+        tournamentName: major.name,
+        notifiedAt: new Date().toISOString(),
+        userCount: users.length,
+        sent: results.filter((r) => r.status === "fulfilled").length,
+      });
     }
 
     logger.info({
@@ -94,7 +117,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       status: 200,
       durationMs: Date.now() - start,
-      majors: upcomingMajors.map((m) => m.name),
+      majors: majorsToNotify.map((m) => m.name),
       users: users.length,
       sent: totalSent,
       failed: totalFailed,

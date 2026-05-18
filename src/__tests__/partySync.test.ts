@@ -11,7 +11,6 @@ vi.mock("@/lib/firestore", () => ({
   updatePartyLastNotified: vi.fn(),
   getUserEmail: vi.fn(),
   getUsersInfo: vi.fn(),
-  compactAnalytics: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/espn", () => ({
@@ -36,7 +35,6 @@ const mocks = {
   updatePartyLastNotified: vi.mocked(firestore.updatePartyLastNotified),
   getUserEmail: vi.mocked(firestore.getUserEmail),
   getUsersInfo: vi.mocked(firestore.getUsersInfo),
-  compactAnalytics: vi.mocked(firestore.compactAnalytics),
 };
 
 function makeParty(overrides: Partial<Party> = {}): Party {
@@ -53,8 +51,6 @@ describe("syncPartyStatus", () => {
     // Stub global.fetch for notification calls
     fetchSpy = vi.fn().mockResolvedValue({ ok: true });
     global.fetch = fetchSpy;
-    // compactAnalytics is fire-and-forget - always resolve
-    mocks.compactAnalytics.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -71,7 +67,6 @@ describe("syncPartyStatus", () => {
     const result = await syncPartyStatus(party);
 
     expect(mocks.updatePartyStatus).toHaveBeenCalledWith(party.id, "complete");
-    expect(mocks.compactAnalytics).toHaveBeenCalledWith(party);
     expect(result.status).toBe("complete");
   });
 
@@ -118,7 +113,6 @@ describe("syncPartyStatus", () => {
     const result = await syncPartyStatus(party);
 
     expect(mocks.updatePartyStatus).toHaveBeenCalledWith(party.id, "complete");
-    expect(mocks.compactAnalytics).toHaveBeenCalledWith(party);
     expect(result.status).toBe("complete");
   });
 
@@ -264,24 +258,6 @@ describe("syncPartyStatus", () => {
     const result = await syncPartyStatus(party);
 
     expect(result.status).toBe("locked");
-    expect(mocks.compactAnalytics).not.toHaveBeenCalled();
-  });
-
-  it("completes successfully even if analytics compaction fails", async () => {
-    const party = makeParty({ status: "locked" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "post", firstTeeTime: null });
-    mocks.compactAnalytics.mockRejectedValue(new Error("Firestore error"));
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const result = await syncPartyStatus(party);
-
-    expect(result.status).toBe("complete");
-    expect(mocks.compactAnalytics).toHaveBeenCalledWith(party);
-    // Wait for the fire-and-forget promise to settle
-    await vi.waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith("Analytics compaction failed:", expect.any(Error));
-    });
-    consoleSpy.mockRestore();
   });
 
   // --- complete party is not affected ---
