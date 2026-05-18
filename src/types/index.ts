@@ -119,6 +119,8 @@ export interface LeaderboardEntry {
     displayThru?: string;
     /** Shown when the score was capped at cut line (actual score before capping) */
     actualDisplayScore?: string;
+    /** Per-round score relative to par, e.g. ["-2", "E", "+1", "-3"] */
+    roundScoresToPar?: string[];
   }[];
   totalScore: number;
   displayTotal: string;
@@ -129,6 +131,8 @@ export interface LeaderboardResult {
   cutLine: number | null;
   /** 0 means no cut for this tournament, >0 is the round the cut happens after */
   cutRound: number | null;
+  /** Course par per round (e.g. 72) */
+  coursePar: number | null;
 }
 
 export interface ESPNEvent {
@@ -149,6 +153,7 @@ export interface ESPNEvent {
   };
   courses: {
     name: string;
+    shotsToPar?: number;
   }[];
   competitions: ESPNCompetition[];
   purse?: number;

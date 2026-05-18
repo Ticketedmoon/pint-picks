@@ -253,7 +253,7 @@ describe("fetchLeaderboard", () => {
   it("returns empty scores when no events", async () => {
     global.fetch = mockFetchResponse({ events: [] });
     const result = await fetchLeaderboard("evt1");
-    expect(result).toEqual({ scores: [], cutLine: null, cutRound: null });
+    expect(result).toEqual({ scores: [], cutLine: null, cutRound: null, coursePar: null });
   });
 
   it("returns empty scores when no competitions", async () => {
@@ -261,7 +261,7 @@ describe("fetchLeaderboard", () => {
       events: [makeESPNEvent({ competitions: [] })],
     });
     const result = await fetchLeaderboard("evt1");
-    expect(result).toEqual({ scores: [], cutLine: null, cutRound: null });
+    expect(result).toEqual({ scores: [], cutLine: null, cutRound: null, coursePar: null });
   });
 
   it("returns cutLine from tournament.cutScore", async () => {
@@ -289,6 +289,22 @@ describe("fetchLeaderboard", () => {
     const result = await fetchLeaderboard("evt1");
     expect(result.cutRound).toBe(0);
     expect(result.cutLine).toBeNull();
+  });
+
+  it("returns coursePar from courses[0].shotsToPar", async () => {
+    global.fetch = mockFetchResponse({
+      events: [makeESPNEvent({ courses: [{ name: "Augusta National", shotsToPar: 72 }] })],
+    });
+    const result = await fetchLeaderboard("evt1");
+    expect(result.coursePar).toBe(72);
+  });
+
+  it("returns null coursePar when courses lack shotsToPar", async () => {
+    global.fetch = mockFetchResponse({
+      events: [makeESPNEvent()],
+    });
+    const result = await fetchLeaderboard("evt1");
+    expect(result.coursePar).toBeNull();
   });
 
   it("throws on API error", async () => {

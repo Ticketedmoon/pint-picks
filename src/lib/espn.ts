@@ -91,13 +91,14 @@ export async function fetchLeaderboard(eventId: string): Promise<LeaderboardResu
   if (!res.ok) throw new Error(`ESPN API error: ${res.status}`);
   const data = await res.json();
   const event = data.events?.[0];
-  if (!event) return { scores: [], cutLine: null, cutRound: null };
+  if (!event) return { scores: [], cutLine: null, cutRound: null, coursePar: null };
   const competition = event.competitions?.[0];
-  if (!competition) return { scores: [], cutLine: null, cutRound: null };
+  if (!competition) return { scores: [], cutLine: null, cutRound: null, coursePar: null };
   const scores = (competition.competitors || []).map(mapCompetitorToPlayerScore);
   const cutLine: number | null = event.tournament?.cutScore ?? null;
   const cutRound: number | null = event.tournament?.cutRound ?? null;
-  return { scores, cutLine, cutRound };
+  const coursePar: number | null = event.courses?.[0]?.shotsToPar ?? null;
+  return { scores, cutLine, cutRound, coursePar };
 }
 
 /**

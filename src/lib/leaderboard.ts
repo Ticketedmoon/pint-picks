@@ -2,6 +2,15 @@ import { PICK_SLOT_DEFS } from "@/lib/constants";
 import { calculateEffectiveScore, formatScoreToPar } from "@/lib/espn";
 import type { LeaderboardEntry, Party, Picks, PlayerScore } from "@/types";
 
+/**
+ * Pass through round scores when available.
+ * ESPN linescore displayValues are already relative to par (e.g. "+6", "-2", "E").
+ */
+function buildRoundScoresToPar(roundScores: string[] | undefined): string[] | undefined {
+  if (!roundScores || roundScores.length === 0) return undefined;
+  return roundScores;
+}
+
 export function buildLeaderboardEntries(
   party: Party,
   allPicks: Record<string, Picks>,
@@ -59,6 +68,8 @@ export function buildLeaderboardEntries(
           const displayParts = [formatScoreToPar(effectiveScore)];
           if (penalty > 0) displayParts.push(`(+${penalty})`);
 
+          const roundScoresToPar = buildRoundScoresToPar(score.roundScores);
+
           return {
             group: label,
             playerId: pick.playerId,
@@ -69,6 +80,7 @@ export function buildLeaderboardEntries(
             headshot: score.headshot,
             displayThru: score.displayThru,
             ...(wasCapped && { actualDisplayScore: formatScoreToPar(score.scoreToPar) }),
+            ...(roundScoresToPar && { roundScoresToPar }),
           };
         })
       : [];

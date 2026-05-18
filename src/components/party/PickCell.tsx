@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { getScoreColor, isCutStatus } from "@/lib/scoring";
 import type { LeaderboardEntry } from "@/types";
 
@@ -9,41 +12,90 @@ interface PickCellProps {
   variant: "card" | "table";
 }
 
+/** Small inline pills showing per-round score relative to par. */
+function RoundScorePills({ rounds }: { rounds: string[] }) {
+  return (
+    <div className="mt-1 flex items-center gap-1">
+      {rounds.map((score, i) => {
+        const normalized = score === "E" ? 0 : parseInt(score, 10);
+        const color = isNaN(normalized) || score === "-"
+          ? "bg-gray-100 text-gray-400"
+          : normalized < 0
+            ? "bg-red-50 text-red-600"
+            : normalized > 0
+              ? "bg-blue-50 text-blue-600"
+              : "bg-gray-100 text-gray-500";
+        return (
+          <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold sm:text-[10px] ${color}`}>
+            <span className="mr-0.5 text-[8px] font-normal text-gray-400 sm:text-[9px]">R{i + 1}</span>
+            {score}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function PickCell({ pick, label, variant }: PickCellProps) {
+  const [expanded, setExpanded] = useState(false);
   const isCut = isCutStatus(pick.status);
   const isCapped = !!pick.actualDisplayScore;
+  const hasRounds = pick.roundScoresToPar && pick.roundScoresToPar.length > 0;
   const scoreColor = getScoreColor(pick.scoreToPar, pick.status);
   const nameColor = isCut ? "text-red-700 line-through" : variant === "card" ? "text-gray-700" : "text-gray-600";
 
+  const toggleExpand = hasRounds ? () => setExpanded((prev) => !prev) : undefined;
+
   if (variant === "card") {
     return (
-      <div className="flex items-center gap-2">
-        <span className="w-6 shrink-0 text-center text-[11px] font-bold text-gray-400">{label}</span>
-        <span className={`min-w-0 flex-1 truncate text-sm ${nameColor}`}>{pick.playerName}</span>
-        {!isCut && pick.displayThru && pick.status === "playing" && (
-          <span className="shrink-0 text-[10px] font-medium text-gray-400">Thru {pick.displayThru}</span>
-        )}
-        {!isCut && pick.status === "finished" && (
-          <span className="shrink-0 text-[10px] font-medium text-green-600">F</span>
-        )}
-        <span className={`shrink-0 text-sm font-bold ${scoreColor}`}>{pick.displayScore}</span>
-        {isCapped && (
-          <span className="shrink-0 text-[10px] text-gray-400" title={`Actual score: ${pick.actualDisplayScore} (capped at cut line)`}>({pick.actualDisplayScore})</span>
-        )}
-        {isCapped && (
-          <span className="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white" title="Score capped at cut line">CAP</span>
-        )}
-        {isCut && (
-          <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">CUT</span>
+      <div
+        className={`${hasRounds ? "cursor-pointer" : ""}`}
+        onClick={toggleExpand}
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-6 shrink-0 text-center text-[11px] font-bold text-gray-400">{label}</span>
+          <span className={`min-w-0 flex-1 truncate text-sm ${nameColor}`}>{pick.playerName}</span>
+          {!isCut && pick.displayThru && pick.status === "playing" && (
+            <span className="shrink-0 text-[10px] font-medium text-gray-400">Thru {pick.displayThru}</span>
+          )}
+          {!isCut && pick.status === "finished" && (
+            <span className="shrink-0 text-[10px] font-medium text-green-600">F</span>
+          )}
+          <span className={`shrink-0 text-sm font-bold ${scoreColor}`}>{pick.displayScore}</span>
+          {isCapped && (
+            <span className="shrink-0 text-[10px] text-gray-400" title={`Actual score: ${pick.actualDisplayScore} (capped at cut line)`}>({pick.actualDisplayScore})</span>
+          )}
+          {isCapped && (
+            <span className="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white" title="Score capped at cut line">CAP</span>
+          )}
+          {isCut && (
+            <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">CUT</span>
+          )}
+          {hasRounds && (
+            <span className="shrink-0 text-[10px] text-gray-400">{expanded ? "▲" : "▼"}</span>
+          )}
+        </div>
+        {expanded && pick.roundScoresToPar && (
+          <div className="ml-8 pb-0.5">
+            <RoundScorePills rounds={pick.roundScoresToPar} />
+          </div>
         )}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div
+      className={`flex flex-col items-center gap-0.5 ${hasRounds ? "cursor-pointer" : ""}`}
+      onClick={toggleExpand}
+    >
       <span className={`max-w-[52px] truncate text-[10px] sm:max-w-[100px] sm:text-xs ${nameColor}`}>{pick.playerName}</span>
-      <span className={`text-xs font-bold sm:text-sm ${scoreColor}`}>{pick.displayScore}</span>
+      <span className="flex items-center gap-0.5">
+        <span className={`text-xs font-bold sm:text-sm ${scoreColor}`}>{pick.displayScore}</span>
+        {hasRounds && (
+          <span className="text-[9px] text-gray-400 sm:text-[10px]">{expanded ? "▲" : "▼"}</span>
+        )}
+      </span>
       {isCapped && (
         <>
           <span className="text-[9px] text-gray-400 sm:text-[10px]" title={`Actual score: ${pick.actualDisplayScore} (capped at cut line)`}>({pick.actualDisplayScore})</span>
@@ -58,6 +110,9 @@ export function PickCell({ pick, label, variant }: PickCellProps) {
       )}
       {isCut && (
         <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white sm:px-1.5 sm:text-[10px]">CUT</span>
+      )}
+      {expanded && pick.roundScoresToPar && (
+        <RoundScorePills rounds={pick.roundScoresToPar} />
       )}
       <span className="sr-only">{label}</span>
     </div>

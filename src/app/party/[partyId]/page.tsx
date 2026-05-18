@@ -72,7 +72,7 @@ function PartyContent() {
     const [allPicks, usersInfo, leaderboardResult] = await Promise.all([
       getAllPicksForParty(partyData.id),
       getUsersInfo(partyData.memberUids),
-      fetchLeaderboard(partyData.tournamentId).catch(() => ({ scores: [] as PlayerScore[], cutLine: null, cutRound: null })),
+      fetchLeaderboard(partyData.tournamentId).catch(() => ({ scores: [] as PlayerScore[], cutLine: null, cutRound: null, coursePar: null })),
     ]);
 
     setCutLine(leaderboardResult.cutLine);

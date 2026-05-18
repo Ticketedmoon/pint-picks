@@ -222,4 +222,51 @@ describe("buildLeaderboardEntries", () => {
     expect(uid1Entry.picks[0].scoreToPar).toBe(2);
     expect(uid1Entry.picks[0].actualDisplayScore).toBeUndefined();
   });
+
+  it("includes roundScoresToPar when roundScores are available", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({
+      playerId: "a1",
+      playerName: "Player A",
+      scoreToPar: -5,
+      status: "finished",
+      roundScores: ["-3", "-2", "E", "+1"],
+    })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    expect(uid1Entry.picks[0].roundScoresToPar).toEqual(["-3", "-2", "E", "+1"]);
+  });
+
+  it("omits roundScoresToPar when roundScores are absent", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({
+      playerId: "a1",
+      playerName: "Player A",
+      scoreToPar: -2,
+      status: "playing",
+    })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    expect(uid1Entry.picks[0].roundScoresToPar).toBeUndefined();
+  });
 });
