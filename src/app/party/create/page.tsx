@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -8,8 +9,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { createParty, addInvites } from "@/lib/firestore";
 import { fetchCurrentTournaments, fetchDynamicGroups } from "@/lib/espn";
 import { calculatePayouts } from "@/lib/payouts";
-import { GroupEditor } from "@/components/GroupEditor";
 import type { Tournament, Party, Player } from "@/types";
+
+const GroupEditor = dynamic(() => import("@/components/GroupEditor").then(m => ({ default: m.GroupEditor })), { ssr: false });
 
 function CreatePartyContent() {
   const { user } = useAuth();

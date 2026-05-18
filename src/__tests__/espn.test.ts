@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { calculateEffectiveScore, formatScoreToPar, fetchLeaderboard, fetchTournamentSnapshot, fetchTournamentStatus, fetchFirstTeeTime, fetchCurrentTournaments, fetchPlayersFromLeaderboard, fetchTournamentSchedule, fetchDynamicGroups, fetchCurrentRound } from "@/lib/espn";
+import { calculateEffectiveScore, formatScoreToPar, fetchLeaderboard, fetchTournamentSnapshot, fetchTournamentStatus, fetchFirstTeeTime, fetchCurrentTournaments, fetchPlayersFromLeaderboard, fetchTournamentSchedule, fetchDynamicGroups, fetchCurrentRound, clearEspnCache } from "@/lib/espn";
 import type { PlayerScore } from "@/types";
 
 function makePlayerScore(overrides: Partial<PlayerScore> = {}): PlayerScore {
@@ -57,6 +57,11 @@ function mockFetchResponse(data: unknown, ok = true) {
     json: () => Promise.resolve(data),
   });
 }
+
+// Clear the ESPN in-memory cache before each test to prevent cross-test interference
+beforeEach(() => {
+  clearEspnCache();
+});
 
 describe("calculateEffectiveScore", () => {
   it("returns unpenalised score for playing status", () => {
@@ -190,6 +195,17 @@ describe("fetchLeaderboard", () => {
     expect(result.scores[0].scoreToPar).toBe(-5);
     expect(result.scores[0].status).toBe("finished");
     expect(result.scores[0].position).toBe("T1");
+  });
+
+  it("returns cached result on second call within TTL", async () => {
+    const mockFetch = mockFetchResponse({ events: [makeESPNEvent()] });
+    global.fetch = mockFetch;
+
+    await fetchLeaderboard("evt-cache");
+    await fetchLeaderboard("evt-cache");
+
+    // fetch should only be called once; second call hits cache
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("maps STATUS_CUT to cut status", async () => {

@@ -2,6 +2,49 @@ import type { Tournament, Player, PlayerScore, ESPNEvent, ESPNCompetitor, Groupe
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
 
+/** Simple in-memory cache with TTL for client-side ESPN API calls. */
+const cache = new Map<string, { data: unknown; expiresAt: number }>();
+
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry || Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setCache(key: string, data: unknown): void {
+  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/** Clear the in-memory cache. Exported for use in tests. */
+export function clearEspnCache(): void {
+  cache.clear();
+}
+
+async function cachedFetch(url: string): Promise<Response> {
+  const cached = getCached<unknown>(url);
+  if (cached) {
+    return new Response(JSON.stringify(cached), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const res = await fetch(url);
+  if (res.ok) {
+    const data = await res.json();
+    setCache(url, data);
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return res;
+}
+
 function mapESPNEventToTournament(event: ESPNEvent): Tournament {
   return {
     id: event.id,
@@ -49,8 +92,8 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
   const dateRange = `${formatDate(now)}-${formatDate(endOfYear)}`;
 
   const [leaderboardRes, scoreboardRes] = await Promise.all([
-    fetch(`${ESPN_BASE}/leaderboard`),
-    fetch(`${ESPN_BASE}/pga/scoreboard?dates=${dateRange}`),
+    cachedFetch(`${ESPN_BASE}/leaderboard`),
+    cachedFetch(`${ESPN_BASE}/pga/scoreboard?dates=${dateRange}`),
   ]);
 
   const leaderboardData = leaderboardRes.ok ? await leaderboardRes.json() : { events: [] };
@@ -77,7 +120,7 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
 export async function fetchTournamentSchedule(year: number = new Date().getFullYear()): Promise<Tournament[]> {
   // ESPN doesn't have a dedicated schedule endpoint for golf, but we can
   // use the scoreboard endpoint for the season
-  const res = await fetch(`${ESPN_BASE}/pga/scoreboard?dates=${year}`);
+  const res = await cachedFetch(`${ESPN_BASE}/pga/scoreboard?dates=${year}`);
   if (!res.ok) {
     // Fallback to leaderboard which shows current/recent events
     return fetchCurrentTournaments();
@@ -87,7 +130,7 @@ export async function fetchTournamentSchedule(year: number = new Date().getFullY
 }
 
 export async function fetchLeaderboard(eventId: string): Promise<LeaderboardResult> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
+  const res = await cachedFetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
   if (!res.ok) throw new Error(`ESPN API error: ${res.status}`);
   const data = await res.json();
   const event = data.events?.[0];
@@ -127,7 +170,7 @@ export async function fetchTournamentSnapshot(eventId: string): Promise<{
   status: "pre" | "in" | "post";
   firstTeeTime: string | null;
 }> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
+  const res = await cachedFetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
   if (!res.ok) return { status: "pre", firstTeeTime: null };
   const data = await res.json();
   const event = data.events?.[0];
@@ -171,7 +214,7 @@ export async function fetchCurrentRound(eventId: string): Promise<{
   totalRounds: number;
   nextRoundTeeTime: string | null;
 } | null> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
+  const res = await cachedFetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
   if (!res.ok) return null;
   const data = await res.json();
   const event = data.events?.[0];
@@ -234,7 +277,7 @@ export async function fetchCurrentRound(eventId: string): Promise<{
 }
 
 export async function fetchPlayersFromLeaderboard(eventId: string): Promise<Player[]> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
+  const res = await cachedFetch(`${ESPN_BASE}/leaderboard?event=${eventId}`);
   if (!res.ok) throw new Error(`ESPN API error: ${res.status}`);
   const data = await res.json();
   const event = data.events?.[0];
@@ -301,7 +344,7 @@ export async function fetchDynamicGroups(eventId?: string): Promise<{
  * Used as a last-resort fallback.
  */
 async function fetchPlayersFromRecentTournament(): Promise<Player[]> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard`);
+  const res = await cachedFetch(`${ESPN_BASE}/leaderboard`);
   if (!res.ok) return [];
   const data = await res.json();
 

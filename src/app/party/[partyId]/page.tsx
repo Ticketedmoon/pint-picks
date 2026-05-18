@@ -1,14 +1,16 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
-import { LeaderboardCards } from "@/components/party/LeaderboardCards";
-import { LeaderboardTable } from "@/components/party/LeaderboardTable";
-import { TournamentLeaderboardModal } from "@/components/party/TournamentLeaderboardModal";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+
+const LeaderboardCards = dynamic(() => import("@/components/party/LeaderboardCards").then(m => ({ default: m.LeaderboardCards })), { ssr: false });
+const LeaderboardTable = dynamic(() => import("@/components/party/LeaderboardTable").then(m => ({ default: m.LeaderboardTable })), { ssr: false });
+const TournamentLeaderboardModal = dynamic(() => import("@/components/party/TournamentLeaderboardModal").then(m => ({ default: m.TournamentLeaderboardModal })), { ssr: false });
 import {
   AUTO_REFRESH_SECONDS,
   COPY_FEEDBACK_MS,
