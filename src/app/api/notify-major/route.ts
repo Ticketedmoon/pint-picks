@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ sent: 0, message: "No upcoming majors within notification window" });
     }
 
-    // Get all registered users from analytics_last_visit (best proxy for active users)
+    // Get all registered users from the users collection
     const db = getFirebaseDb();
-    const usersSnap = await getDocs(collection(db, "analytics_last_visit"));
+    const usersSnap = await getDocs(collection(db, "users"));
     const users = usersSnap.docs
       .map((d) => ({ uid: d.id, email: d.data().email as string | null, displayName: d.data().displayName as string | null }))
       .filter((u) => u.email);
