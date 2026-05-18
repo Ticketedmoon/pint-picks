@@ -329,6 +329,11 @@ async function fetchPlayersFromRecentTournament(): Promise<Player[]> {
  * Per ADR-023: cut players are capped at cutLine + 1 (from ESPN tournament.cutScore).
  * WD/DQ players still receive the flat +1 penalty from ADR-005.
  * If no cutLine is available (pre-cut), cut players fall back to the +1 penalty.
+ *
+ * Made-cut players (playing/finished) are capped at the cutLine so that a
+ * player who makes the cut but plays poorly afterwards never scores worse
+ * than the cutLine itself. This keeps things fair: the user is not penalised
+ * for a player who slumps after making the cut.
  */
 export function calculateEffectiveScore(
   playerScore: PlayerScore,
@@ -336,20 +341,32 @@ export function calculateEffectiveScore(
 ): {
   effectiveScore: number;
   penalty: number;
+  wasCapped: boolean;
 } {
   if (playerScore.status === "cut" && cutLine != null) {
     const cappedScore = cutLine + 1;
     return {
       effectiveScore: cappedScore,
       penalty: cappedScore - playerScore.scoreToPar,
+      wasCapped: false,
     };
   }
 
   const isPenalised = ["cut", "wd", "dq"].includes(playerScore.status);
   const penalty = isPenalised ? 1 : 0;
+  const rawScore = playerScore.scoreToPar + penalty;
+
+  // Cap made-cut players at the cutLine: if they made the cut but their
+  // score drifts above the line, they are scored at the cutLine instead.
+  const isMadeCut = playerScore.status === "playing" || playerScore.status === "finished";
+  if (isMadeCut && cutLine != null && rawScore > cutLine) {
+    return { effectiveScore: cutLine, penalty: 0, wasCapped: true };
+  }
+
   return {
-    effectiveScore: playerScore.scoreToPar + penalty,
+    effectiveScore: rawScore,
     penalty,
+    wasCapped: false,
   };
 }
 

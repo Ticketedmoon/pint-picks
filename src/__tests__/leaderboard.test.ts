@@ -182,4 +182,44 @@ describe("buildLeaderboardEntries", () => {
     expect(uid1Entry.picks[0].displayScore).toBe("-");
     expect(uid1Entry.picks[0].scoreToPar).toBe(0);
   });
+
+  it("caps made-cut player at cutLine and shows actualDisplayScore", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "finished" })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    // Capped at cutLine (4), not actual score (8)
+    expect(uid1Entry.picks[0].scoreToPar).toBe(4);
+    expect(uid1Entry.picks[0].displayScore).toBe("+4");
+    expect(uid1Entry.picks[0].actualDisplayScore).toBe("+8");
+  });
+
+  it("does not set actualDisplayScore when player is below cutLine", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 2, status: "finished" })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    expect(uid1Entry.picks[0].scoreToPar).toBe(2);
+    expect(uid1Entry.picks[0].actualDisplayScore).toBeUndefined();
+  });
 });

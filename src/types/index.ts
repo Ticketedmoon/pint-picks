@@ -117,6 +117,8 @@ export interface LeaderboardEntry {
     status: "playing" | "finished" | "cut" | "wd" | "dq";
     headshot?: string;
     displayThru?: string;
+    /** Shown when the score was capped at cut line (actual score before capping) */
+    actualDisplayScore?: string;
   }[];
   totalScore: number;
   displayTotal: string;

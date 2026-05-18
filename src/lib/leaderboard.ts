@@ -53,7 +53,7 @@ export function buildLeaderboardEntries(
             };
           }
 
-          const { effectiveScore, penalty } = calculateEffectiveScore(score, cutLine);
+          const { effectiveScore, penalty, wasCapped } = calculateEffectiveScore(score, cutLine);
           totalScore += effectiveScore;
 
           const displayParts = [formatScoreToPar(effectiveScore)];
@@ -68,6 +68,7 @@ export function buildLeaderboardEntries(
             status: score.status,
             headshot: score.headshot,
             displayThru: score.displayThru,
+            ...(wasCapped && { actualDisplayScore: formatScoreToPar(score.scoreToPar) }),
           };
         })
       : [];

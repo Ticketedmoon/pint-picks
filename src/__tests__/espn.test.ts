@@ -119,10 +119,32 @@ describe("calculateEffectiveScore", () => {
     expect(result.penalty).toBe(1);
   });
 
-  it("does not penalise playing status even with cutLine", () => {
+  it("caps playing player at cutLine when their score exceeds it", () => {
     const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 6, status: "playing" }), 4);
-    expect(result.effectiveScore).toBe(6);
+    expect(result.effectiveScore).toBe(4);
     expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(true);
+  });
+
+  it("caps finished player at cutLine when their score exceeds it", () => {
+    const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 8, status: "finished" }), 4);
+    expect(result.effectiveScore).toBe(4);
+    expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(true);
+  });
+
+  it("does not cap playing player when their score is at or below cutLine", () => {
+    const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 3, status: "playing" }), 4);
+    expect(result.effectiveScore).toBe(3);
+    expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(false);
+  });
+
+  it("does not cap playing player when no cutLine is provided", () => {
+    const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 10, status: "playing" }));
+    expect(result.effectiveScore).toBe(10);
+    expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(false);
   });
 });
 

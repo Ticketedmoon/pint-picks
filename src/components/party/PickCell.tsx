@@ -11,6 +11,7 @@ interface PickCellProps {
 
 export function PickCell({ pick, label, variant }: PickCellProps) {
   const isCut = isCutStatus(pick.status);
+  const isCapped = !!pick.actualDisplayScore;
   const scoreColor = getScoreColor(pick.scoreToPar, pick.status);
   const nameColor = isCut ? "text-red-700 line-through" : variant === "card" ? "text-gray-700" : "text-gray-600";
 
@@ -26,6 +27,12 @@ export function PickCell({ pick, label, variant }: PickCellProps) {
           <span className="shrink-0 text-[10px] font-medium text-green-600">F</span>
         )}
         <span className={`shrink-0 text-sm font-bold ${scoreColor}`}>{pick.displayScore}</span>
+        {isCapped && (
+          <span className="shrink-0 text-[10px] text-gray-400" title={`Actual score: ${pick.actualDisplayScore} (capped at cut line)`}>({pick.actualDisplayScore})</span>
+        )}
+        {isCapped && (
+          <span className="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white" title="Score capped at cut line">CAP</span>
+        )}
         {isCut && (
           <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">CUT</span>
         )}
@@ -37,10 +44,16 @@ export function PickCell({ pick, label, variant }: PickCellProps) {
     <div className="flex flex-col items-center gap-0.5">
       <span className={`max-w-[52px] truncate text-[10px] sm:max-w-[100px] sm:text-xs ${nameColor}`}>{pick.playerName}</span>
       <span className={`text-xs font-bold sm:text-sm ${scoreColor}`}>{pick.displayScore}</span>
-      {!isCut && pick.displayThru && pick.status === "playing" && (
+      {isCapped && (
+        <>
+          <span className="text-[9px] text-gray-400 sm:text-[10px]" title={`Actual score: ${pick.actualDisplayScore} (capped at cut line)`}>({pick.actualDisplayScore})</span>
+          <span className="rounded bg-amber-500 px-1 py-0.5 text-[9px] font-bold text-white sm:px-1.5 sm:text-[10px]" title="Score capped at cut line">CAP</span>
+        </>
+      )}
+      {!isCut && !isCapped && pick.displayThru && pick.status === "playing" && (
         <span className="hidden text-[10px] font-medium text-gray-400 sm:inline">Thru {pick.displayThru}</span>
       )}
-      {!isCut && pick.status === "finished" && (
+      {!isCut && !isCapped && pick.status === "finished" && (
         <span className="hidden text-[10px] font-medium text-green-600 sm:inline">F</span>
       )}
       {isCut && (
