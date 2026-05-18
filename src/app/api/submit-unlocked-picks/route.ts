@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Party not found" }, { status: 404 });
     }
     if (party.status === "complete") {
-      return NextResponse.json({ error: "Tournament is complete — picks can no longer be changed" }, { status: 400 });
+      return NextResponse.json({ error: "Tournament is complete - picks can no longer be changed" }, { status: 400 });
     }
     if (party.status !== "locked") {
       return NextResponse.json({ error: "Party is not in locked state" }, { status: 400 });

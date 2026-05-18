@@ -1,4 +1,4 @@
-# ADR-014: Player ID Matching — Name-Based Fallback
+# ADR-014: Player ID Matching - Name-Based Fallback
 
 ## Status
 Accepted
@@ -9,7 +9,7 @@ Accepted
 ## Context
 Player picks are stored with IDs from the **OWGR API** (e.g. `owgr_18417` for Scottie Scheffler), but the leaderboard data comes from the **ESPN API** which uses its own IDs (e.g. `9478` for Scheffler). These IDs are completely different and cannot be mapped automatically.
 
-This means when calculating leaderboard scores, looking up a pick by player ID against ESPN data returns no match — scores show as "-" for all players.
+This means when calculating leaderboard scores, looking up a pick by player ID against ESPN data returns no match - scores show as "-" for all players.
 
 ## Decision
 Implement a **dual-lookup strategy** when matching picks to leaderboard scores:
@@ -30,7 +30,7 @@ Both maps are built once per leaderboard refresh from the ESPN data.
 ### Positive
 - Works regardless of which ID system the picks use (OWGR or ESPN)
 - Player names are consistent across both APIs (both use full official names)
-- Zero additional API calls — just a second Map lookup
+- Zero additional API calls - just a second Map lookup
 
 ### Negative
 - Name matching could fail if APIs use slightly different name formats (e.g. "Ludvig Åberg" vs "Ludvig Aberg")

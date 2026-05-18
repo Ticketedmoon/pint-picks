@@ -179,7 +179,7 @@ function PartyContent() {
     return () => clearInterval(interval);
   }, [party, loading]);
 
-  // First tee-off countdown — fetches actual tee time from ESPN, falls back to tournament start date
+  // First tee-off countdown - fetches actual tee time from ESPN, falls back to tournament start date
   useEffect(() => {
     if (!party || party.status !== "picking") return;
 
@@ -273,7 +273,7 @@ function PartyContent() {
         setShowInviteForm(false);
       }, INVITE_RESULT_MS);
     } catch {
-      setInviteResult("Failed to send invites — but invite code still works.");
+      setInviteResult("Failed to send invites - but invite code still works.");
     }
     setInviteSending(false);
   };
@@ -354,12 +354,12 @@ function PartyContent() {
           </p>
           {tournamentCountdown && party.status === "picking" && (
             <p className="mt-1 text-xs sm:text-sm font-medium text-amber-700">
-              ⛳ First tee-off in {tournamentCountdown} — picks lock at tee-off
+              ⛳ First tee-off in {tournamentCountdown} - picks lock at tee-off
             </p>
           )}
           {!tournamentCountdown && party.status === "picking" && (
             <p className="mt-1 text-xs sm:text-sm font-medium text-blue-700">
-              🔒 First tee-off is imminent — picks are about to lock
+              🔒 First tee-off is imminent - picks are about to lock
             </p>
           )}
           {party.buyIn > 0 && (() => {
@@ -467,7 +467,7 @@ function PartyContent() {
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Invite more people</h3>
 
-          {/* Shareable link — primary method */}
+          {/* Shareable link - primary method */}
           <div className="mb-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
             <p className="text-xs font-medium text-gray-500 mb-2">Share this link:</p>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -487,7 +487,7 @@ function PartyContent() {
             </div>
           </div>
 
-          {/* Email invites — secondary method */}
+          {/* Email invites - secondary method */}
           <p className="text-xs font-medium text-gray-500 mb-2">Or send email invites:</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <textarea
@@ -531,7 +531,7 @@ function PartyContent() {
 
       {party.invalidPicks && party.invalidPicks.length > 0 && party.status === "picking" && (
         <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold">⚠️ Tournament starting — some members have picks not in the confirmed field</p>
+          <p className="font-semibold">⚠️ Tournament starting - some members have picks not in the confirmed field</p>
           <p className="mt-1 text-xs sm:text-sm text-amber-700">
             The game will lock automatically once all picks are valid. Affected members have been emailed.
           </p>
@@ -552,7 +552,7 @@ function PartyContent() {
 
       {isLocked && party.status === "locked" && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-6 text-sm">
-          🔒 Picks are locked — the tournament is in progress.
+          🔒 Picks are locked - the tournament is in progress.
         </div>
       )}
 
@@ -681,7 +681,7 @@ function PartyContent() {
 
       {/* Leave / Delete Party actions */}
       <div className="mt-12 border-t border-gray-200 pt-8 flex flex-col gap-4">
-        {/* Leave Party — visible to non-creators, only during picking phase */}
+        {/* Leave Party - visible to non-creators, only during picking phase */}
         {user?.uid !== party.createdBy && party.status === "picking" && (
           <>
             {!showLeaveConfirm ? (
@@ -716,7 +716,7 @@ function PartyContent() {
           </>
         )}
 
-        {/* Delete Party — only visible to creator */}
+        {/* Delete Party - only visible to creator */}
         {user?.uid === party.createdBy && (
           <>
             {!showDeleteConfirm ? (

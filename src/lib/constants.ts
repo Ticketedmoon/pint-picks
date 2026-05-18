@@ -1,7 +1,7 @@
 import type { Picks } from "@/types";
 
 /**
- * Pick slot definitions — single source of truth for slot keys and labels.
+ * Pick slot definitions - single source of truth for slot keys and labels.
  * Used in validation, leaderboard rendering, and pick display.
  */
 export const PICK_SLOT_DEFS = [

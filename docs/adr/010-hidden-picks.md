@@ -23,7 +23,7 @@ If players can see each other's picks before the tournament starts, it undermine
 
 ## Consequences
 ### Positive
-- Preserves strategic element — no copying picks
+- Preserves strategic element - no copying picks
 - Users can still see who has/hasn't submitted picks
 - Clean reveal moment when tournament starts
 

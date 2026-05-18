@@ -1,8 +1,8 @@
-# Authentication Architecture — BirdieBets
+# Authentication Architecture - BirdieBets
 
 ## Overview
 
-BirdieBets uses **Firebase Authentication** with **Google Sign-In** as the sole auth provider. Authentication is handled entirely on the client side using the Firebase JS SDK. There is no server-side session management — the Firebase SDK manages tokens and persistence automatically via browser storage.
+BirdieBets uses **Firebase Authentication** with **Google Sign-In** as the sole auth provider. Authentication is handled entirely on the client side using the Firebase JS SDK. There is no server-side session management - the Firebase SDK manages tokens and persistence automatically via browser storage.
 
 ---
 
@@ -51,10 +51,10 @@ BirdieBets uses **Firebase Authentication** with **Google Sign-In** as the sole 
 |------|------|
 | `src/lib/firebase.ts` | Firebase app initialization + lazy Auth/Firestore getters |
 | `src/contexts/AuthContext.tsx` | Auth state provider (React Context) |
-| `src/components/ProtectedRoute.tsx` | Route guard — redirects unauthenticated users |
+| `src/components/ProtectedRoute.tsx` | Route guard - redirects unauthenticated users |
 | `src/components/Providers.tsx` | Client-side mounting wrapper to avoid SSR hydration issues |
 | `src/app/login/page.tsx` | Login page with Google Sign-In button |
-| `src/app/page.tsx` | Root redirect — sends users to `/dashboard` or `/login` |
+| `src/app/page.tsx` | Root redirect - sends users to `/dashboard` or `/login` |
 | `src/app/layout.tsx` | Wraps entire app in `<Providers>` |
 
 ---
@@ -63,7 +63,7 @@ BirdieBets uses **Firebase Authentication** with **Google Sign-In** as the sole 
 
 ### 1. Firebase Initialization (`src/lib/firebase.ts`)
 
-Firebase is configured via `NEXT_PUBLIC_FIREBASE_*` environment variables. The app, auth, and Firestore instances are **lazily initialized** — only created when first accessed:
+Firebase is configured via `NEXT_PUBLIC_FIREBASE_*` environment variables. The app, auth, and Firestore instances are **lazily initialized** - only created when first accessed:
 
 ```ts
 function getApp(): FirebaseApp {
@@ -83,10 +83,10 @@ This prevents initialization during server-side rendering where `window` is not 
 
 The `AuthProvider` wraps the entire application and provides:
 
-- `user: User | null` — the current Firebase user object (or null if signed out)
-- `loading: boolean` — true while Firebase is determining auth state
-- `signInWithGoogle()` — triggers Google popup sign-in
-- `signOut()` — signs the user out
+- `user: User | null` - the current Firebase user object (or null if signed out)
+- `loading: boolean` - true while Firebase is determining auth state
+- `signInWithGoogle()` - triggers Google popup sign-in
+- `signOut()` - signs the user out
 
 **On mount**, it subscribes to Firebase's `onAuthStateChanged` listener:
 
@@ -116,7 +116,7 @@ useEffect(() => {
 **Key behaviors:**
 - When a user signs in for the first time, a Firestore document is created at `/users/{uid}` with their Google profile data
 - If the user already exists, the profile is **not** updated (so renames in Google won't overwrite)
-- `loading` stays `true` until Firebase resolves the auth state — this prevents flash-of-unauthenticated-content
+- `loading` stays `true` until Firebase resolves the auth state - this prevents flash-of-unauthenticated-content
 
 ### 3. Sign-In Flow (`src/app/login/page.tsx`)
 
@@ -177,7 +177,7 @@ This prevents SSR/hydration mismatches where the server would render unauthentic
 
 ### 6. Root Page (`src/app/page.tsx`)
 
-The root `/` page is a simple redirector — it checks auth state and sends the user to either `/dashboard` (authenticated) or `/login` (unauthenticated).
+The root `/` page is a simple redirector - it checks auth state and sends the user to either `/dashboard` (authenticated) or `/login` (unauthenticated).
 
 ---
 
@@ -197,9 +197,9 @@ Created on first sign-in, stores:
 ```
 
 This document is used throughout the app:
-- `getUserEmail(uid)` — retrieves email for sending notifications
-- `getUserDisplayName(uid)` — shown in leaderboard/UI
-- `getUsersInfo(uids)` — batch lookup for party member display names and photos
+- `getUserEmail(uid)` - retrieves email for sending notifications
+- `getUserDisplayName(uid)` - shown in leaderboard/UI
+- `getUsersInfo(uids)` - batch lookup for party member display names and photos
 
 ### How `user.uid` is used
 
@@ -228,9 +228,9 @@ The Firebase `uid` is the primary identifier throughout the app:
 
 ### What's NOT protected (current limitations)
 
-- **No server-side auth verification on API routes** — the API routes (`/api/send-pick-unlock`, `/api/submit-unlocked-picks`, etc.) trust the `callerUid` sent in the request body. They validate business rules (is this user the creator? is this user a member?) but don't verify the caller's Firebase token server-side.
-- **No Firestore Security Rules mentioned in code** — authorization relies on client-side checks and API route validation. Firestore Security Rules should be configured in the Firebase console to enforce access at the database level.
-- **User profile is not updated after initial creation** — if a user changes their Google display name or photo, the Firestore `/users/{uid}` document retains the original values.
+- **No server-side auth verification on API routes** - the API routes (`/api/send-pick-unlock`, `/api/submit-unlocked-picks`, etc.) trust the `callerUid` sent in the request body. They validate business rules (is this user the creator? is this user a member?) but don't verify the caller's Firebase token server-side.
+- **No Firestore Security Rules mentioned in code** - authorization relies on client-side checks and API route validation. Firestore Security Rules should be configured in the Firebase console to enforce access at the database level.
+- **User profile is not updated after initial creation** - if a user changes their Google display name or photo, the Firestore `/users/{uid}` document retains the original values.
 
 ---
 

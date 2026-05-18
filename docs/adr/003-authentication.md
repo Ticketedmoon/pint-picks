@@ -19,7 +19,7 @@ Use **Firebase Authentication with Google sign-in only**.
 ## Consequences
 
 ### Positive
-- Single click sign-in — lowest friction for users
+- Single click sign-in - lowest friction for users
 - No password storage or reset flows to implement
 - Google handles account security (2FA, etc.)
 - Firebase Auth integrates natively with Firestore security rules

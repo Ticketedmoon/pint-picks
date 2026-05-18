@@ -44,10 +44,10 @@ export const PLAYER_GROUPS: GroupedPlayers = {
 };
 
 export const GROUP_LABELS: Record<string, string> = {
-  A: "Group A — Elite (Rank 1–6)",
-  B: "Group B — Contenders (Rank 7–12)",
-  C: "Group C — Rising Stars (Rank 13–18)",
-  D: "Group D — Dark Horses (Rank 19–24)",
+  A: "Group A - Elite (Rank 1–6)",
+  B: "Group B - Contenders (Rank 7–12)",
+  C: "Group C - Rising Stars (Rank 13–18)",
+  D: "Group D - Dark Horses (Rank 19–24)",
 };
 
 /** Get all player IDs that are in groups A–D (not eligible for wildcard) */

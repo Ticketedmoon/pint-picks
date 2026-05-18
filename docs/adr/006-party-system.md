@@ -25,17 +25,17 @@ Support **two invite mechanisms**:
 - Party creator can enter email addresses of people to invite
 - Invites are stored in Firestore (`parties/{id}/invites/{email}`)
 - When an invited user signs in, they see pending invitations on their dashboard
-- **MVP approach**: No email sending — just match on sign-in. Future enhancement could add email notifications via Resend or Firebase Cloud Functions
+- **MVP approach**: No email sending - just match on sign-in. Future enhancement could add email notifications via Resend or Firebase Cloud Functions
 
 ### Party Lifecycle
-- `picking` — party created, members can submit picks
-- `locked` — tournament has started, picks frozen
-- `complete` — tournament finished, final scores shown
+- `picking` - party created, members can submit picks
+- `locked` - tournament has started, picks frozen
+- `complete` - tournament finished, final scores shown
 
 ## Consequences
 
 ### Positive
-- Invite code is frictionless — works via any messaging app
+- Invite code is frictionless - works via any messaging app
 - Email matching ensures invited users see the party without needing the code
 - No email sending infrastructure needed for MVP (reduces complexity and cost)
 - Party lifecycle states make it clear what actions are available

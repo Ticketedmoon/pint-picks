@@ -15,7 +15,7 @@ export function escapeHtml(str: string): string {
 const FOOTER = `
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
   <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-    Golf Tourney Tracker — Pick your golfers, track tournaments, compete with friends.
+    Golf Tourney Tracker - Pick your golfers, track tournaments, compete with friends.
   </p>`;
 
 function emailWrapper(icon: string, content: string): string {
@@ -91,7 +91,7 @@ export function buildUnlockEmail(params: {
           ⏳ This link expires in 1 hour
         </p>
         <p style="color: #92400e; font-size: 13px; margin: 4px 0 0 0;">
-          Make your picks before the link expires — you won&rsquo;t be able to change them afterwards.
+          Make your picks before the link expires - you won&rsquo;t be able to change them afterwards.
         </p>
       </div>
       ${ctaButton(unlockUrl, "Pick Your Golfers")}
@@ -107,7 +107,7 @@ export function buildInvalidPicksEmail(params: {
 }): { subject: string; html: string } {
   const { displayName, partyName, invalidPlayers, picksUrl } = params;
   return {
-    subject: `⚠️ Update your picks for "${escapeHtml(partyName)}" — tournament starting!`,
+    subject: `⚠️ Update your picks for "${escapeHtml(partyName)}" - tournament starting!`,
     html: emailWrapper("⚠️", `
       <h1 style="color: #b45309; font-size: 22px; text-align: center; margin-bottom: 8px;">
         Action Required
@@ -149,7 +149,7 @@ export function buildMajorReminderEmail(params: {
     year: "numeric",
   });
   return {
-    subject: `⭐ ${escapeHtml(tournamentName)} is coming up — create your party!`,
+    subject: `⭐ ${escapeHtml(tournamentName)} is coming up - create your party!`,
     html: emailWrapper("⛳", `
       <h1 style="color: #15803d; font-size: 22px; text-align: center; margin-bottom: 8px;">
         Major Alert!

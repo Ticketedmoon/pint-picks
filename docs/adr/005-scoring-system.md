@@ -1,7 +1,7 @@
 # ADR-005: Scoring System and Missed Cut Penalty
 
 ## Status
-Accepted — **cut penalty section superseded by [ADR-023](023-cutline-scoring.md)**
+Accepted - **cut penalty section superseded by [ADR-023](023-cutline-scoring.md)**
 
 ## Date
 2026-05-12
@@ -28,7 +28,7 @@ We need a scoring system that:
 - Cell background turns **red** (`bg-red-100` / `bg-red-200`)
 - Display a **"CUT"** badge next to the player name
 - Show the penalised score with annotation, e.g., "+4 (+1)" where +1 is the penalty
-- Tooltip explaining: "Missed Cut — +1 penalty applied"
+- Tooltip explaining: "Missed Cut - +1 penalty applied"
 
 ### Pick Locking
 - Picks are locked once the tournament's first round starts (based on `event.date` from ESPN API)
@@ -38,12 +38,12 @@ We need a scoring system that:
 
 ### Positive
 - Simple, easy-to-understand scoring
-- +1 penalty is meaningful but not devastating — encourages bold picks without extreme punishment
+- +1 penalty is meaningful but not devastating - encourages bold picks without extreme punishment
 - Clear visual feedback (red cells) makes cut status immediately obvious
 - Lock timing tied to actual tournament start prevents mid-tournament gaming
 
 ### Negative
-- +1 penalty is relatively mild — a cut player's score might still be better than a player who made the cut but scored poorly
+- +1 penalty is relatively mild - a cut player's score might still be better than a player who made the cut but scored poorly
 - WD/DQ treatment as same as cut may not feel fair in all cases
 
 ### Alternatives Considered

@@ -10,8 +10,8 @@ const NOTIFICATION_COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
  * status in Firestore if needed.
  *
  * Transitions:
- *   picking → locked   (when tournament starts: ESPN status "in") — only if all picks are valid
- *   picking → complete (when tournament ends: ESPN status "post") — only if all picks are valid
+ *   picking → locked   (when tournament starts: ESPN status "in") - only if all picks are valid
+ *   picking → complete (when tournament ends: ESPN status "post") - only if all picks are valid
  *   locked  → complete (when tournament ends: ESPN status "post")
  *
  * If picks are invalid when trying to lock, the party stays in "picking"
@@ -54,7 +54,7 @@ export async function syncPartyStatus(party: Party): Promise<Party> {
         return { ...party, status: newStatus, invalidPicks: [] };
       }
 
-      // Invalid picks found — block the lock
+      // Invalid picks found - block the lock
       await updatePartyInvalidPicks(party.id, validation.invalidPicks);
 
       const shouldNotify =

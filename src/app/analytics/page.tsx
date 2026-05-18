@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
 
     const adminEmail = process.env.NEXT_PUBLIC_ANALYTICS_ADMIN_EMAIL;
     if (!adminEmail || email !== adminEmail) {
-      setError("Access denied — your account is not authorized to view analytics.");
+      setError("Access denied - your account is not authorized to view analytics.");
       setData(null);
       setFetching(false);
       return;
@@ -294,7 +294,7 @@ export default function AnalyticsPage() {
       try {
         sessionStorage.setItem(cacheKey(numDays), JSON.stringify({ data: result, timestamp: Date.now() }));
       } catch {
-        // Storage full or unavailable — ignore
+        // Storage full or unavailable - ignore
       }
     } catch (err) {
       console.error("Analytics fetch error:", err);
@@ -309,7 +309,7 @@ export default function AnalyticsPage() {
     }
   }, [user, loading, days]);
 
-  // Not signed in — show login
+  // Not signed in - show login
   if (!loading && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 px-4">
@@ -537,7 +537,7 @@ export default function AnalyticsPage() {
                       <span className="ml-2 text-xs text-gray-500">{t.tournamentName}</span>
                     </div>
                     <span className="text-xs text-gray-400">
-                      {new Date(t.periodStart).toLocaleDateString()} — {new Date(t.periodEnd).toLocaleDateString()}
+                      {new Date(t.periodStart).toLocaleDateString()} - {new Date(t.periodEnd).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs">

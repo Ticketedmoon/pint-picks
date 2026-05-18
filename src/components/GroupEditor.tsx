@@ -18,10 +18,10 @@ const GROUP_COLORS: Record<string, string> = {
   D: "border-purple-300 bg-purple-50",
 };
 const GROUP_LABELS: Record<string, string> = {
-  A: "Group A — Elite",
-  B: "Group B — Contenders",
-  C: "Group C — Rising Stars",
-  D: "Group D — Dark Horses",
+  A: "Group A - Elite",
+  B: "Group B - Contenders",
+  C: "Group C - Rising Stars",
+  D: "Group D - Dark Horses",
 };
 
 export function GroupEditor({ groups, wildcards, fieldAvailable, onSave }: GroupEditorProps) {
@@ -78,7 +78,7 @@ export function GroupEditor({ groups, wildcards, fieldAvailable, onSave }: Group
           <p className="text-xs text-gray-400 mt-0.5">
             {fieldAvailable
               ? "Click a player, then click a group to move them."
-              : "Field not announced yet — using OWGR rankings."}
+              : "Field not announced yet - using OWGR rankings."}
           </p>
         </div>
         <span className="text-xs text-gray-500">{totalGrouped} players in groups</span>

@@ -34,23 +34,23 @@ Key query patterns:
 - Specific event: `GET /leaderboard?event={eventId}`
 
 The API returns rich data including:
-- `competitor.status.type.name` — `STATUS_FINISH`, `STATUS_CUT`, etc.
-- `competitor.statistics[].name === "scoreToPar"` — numeric score to par
-- `competitor.athlete` — displayName, headshot, country flag
-- `competitor.linescores[]` — round-by-round scores
+- `competitor.status.type.name` - `STATUS_FINISH`, `STATUS_CUT`, etc.
+- `competitor.statistics[].name === "scoreToPar"` - numeric score to par
+- `competitor.athlete` - displayName, headshot, country flag
+- `competitor.linescores[]` - round-by-round scores
 
 ## Consequences
 
 ### Positive
-- **No API key or signup required** — zero friction for development and deployment
-- **No rate limits** — can refresh leaderboards frequently during live tournaments
-- **Rich data** — headshots, flags, round scores, cut status all included
-- **Proven stability** — widely used by hobby/open-source projects for years
+- **No API key or signup required** - zero friction for development and deployment
+- **No rate limits** - can refresh leaderboards frequently during live tournaments
+- **Rich data** - headshots, flags, round scores, cut status all included
+- **Proven stability** - widely used by hobby/open-source projects for years
 
 ### Negative
-- **Unofficial/undocumented** — ESPN could change or remove endpoints at any time
-- **No SLA or support** — if it breaks, we fix it ourselves
-- **PGA Tour focus** — may not cover LIV Golf or other tours
+- **Unofficial/undocumented** - ESPN could change or remove endpoints at any time
+- **No SLA or support** - if it breaks, we fix it ourselves
+- **PGA Tour focus** - may not cover LIV Golf or other tours
 
 ### Mitigations
 - Cache all API responses in Firestore to reduce dependency on live calls

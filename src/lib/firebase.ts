@@ -16,7 +16,7 @@ function getApp(): FirebaseApp {
   return initializeApp(firebaseConfig);
 }
 
-// Lazy getters — only initialise when called from the client
+// Lazy getters - only initialise when called from the client
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 

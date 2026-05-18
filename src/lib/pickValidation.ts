@@ -27,7 +27,7 @@ export async function validatePartyPicks(party: Party): Promise<ValidationResult
 
   const leaderboard = leaderboardResult.scores;
 
-  // No field data yet — can't validate, assume valid
+  // No field data yet - can't validate, assume valid
   if (leaderboard.length === 0) {
     return { valid: true, invalidPicks: [] };
   }

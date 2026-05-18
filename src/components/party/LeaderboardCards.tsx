@@ -101,12 +101,12 @@ export function LeaderboardCards({
                 )}
                 {idx === 1 && party.secondPlacePayout && (
                   <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-600">
-                    2nd — €{payouts.second}
+                    2nd - €{payouts.second}
                   </span>
                 )}
                 {idx === 2 && party.thirdPlacePayout && (
                   <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-600">
-                    3rd — €{payouts.third}
+                    3rd - €{payouts.third}
                   </span>
                 )}
               </div>

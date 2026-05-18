@@ -27,16 +27,16 @@ Groups should be **refreshable** from the OWGR API / ESPN world rankings data so
 ## Consequences
 
 ### Positive
-- Forces strategic thinking — can't just stack the best players
+- Forces strategic thinking - can't just stack the best players
 - 4 groups + 2 wildcards = good balance of structure and freedom
 - Wildcards allow users to pick dark horses or personal favourites
 - Rankings-based grouping is objective and transparent
 
 ### Negative
-- Rankings change weekly — groups may shift between when picks are made and tournament starts
+- Rankings change weekly - groups may shift between when picks are made and tournament starts
 - 6 players per group may feel restrictive; some groups may have multiple fan favourites
 - Players not in the PGA Tour (e.g., LIV Golf) may not appear in ESPN data
 
 ### Mitigations
-- Snapshot groups at party creation time — once a party is created, groups are frozen for that tournament
+- Snapshot groups at party creation time - once a party is created, groups are frozen for that tournament
 - Display the group assignment clearly in the pick UI so users understand the constraints

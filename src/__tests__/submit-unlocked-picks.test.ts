@@ -104,7 +104,7 @@ describe("POST /api/submit-unlocked-picks", () => {
     const req = makeRequest({ partyId: PARTY_ID, callerUid: TARGET_UID, unlockToken: UNLOCK_TOKEN, picks: completePicks });
     const res = await POST(req as any);
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Tournament is complete — picks can no longer be changed" });
+    expect(await res.json()).toEqual({ error: "Tournament is complete - picks can no longer be changed" });
     expect(mocks.savePicksWithUnlock).not.toHaveBeenCalled();
   });
 
@@ -163,7 +163,7 @@ describe("POST /api/submit-unlocked-picks", () => {
 
   it("accepts token that expires at exactly the current time (strict < comparison)", async () => {
     mocks.getParty.mockResolvedValue(mockParty);
-    // Token expires at exactly now — not yet expired per strict < comparison
+    // Token expires at exactly now - not yet expired per strict < comparison
     mocks.getPickUnlock.mockResolvedValue(
       makeValidUnlock({ expiresAt: new Date(Date.now()).toISOString() })
     );

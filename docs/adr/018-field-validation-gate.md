@@ -15,7 +15,7 @@ Previously, the system would auto-lock the party when ESPN reported the tourname
 Add a **validation gate** in `syncPartyStatus()` that checks all members' picks against the confirmed ESPN field before allowing the `picking → locked` transition.
 
 ### Flow
-1. Party is created (possibly before field is confirmed) — groups/wildcards are frozen (ADR-017)
+1. Party is created (possibly before field is confirmed) - groups/wildcards are frozen (ADR-017)
 2. Members make their picks from the frozen pool
 3. When ESPN reports the tournament starting (`status: "in"`), `syncPartyStatus` triggers
 4. Before locking, **validate all picks** against the ESPN leaderboard competitors
@@ -55,13 +55,13 @@ Each time any page triggers `syncPartyStatus()`:
 ## Consequences
 
 ### Positive
-- Parties can still be created early (before field confirmed) — no friction
+- Parties can still be created early (before field confirmed) - no friction
 - Members are proactively emailed when their picks become invalid
-- The game won't start with broken picks — fair for all members
+- The game won't start with broken picks - fair for all members
 - Self-healing: each page load re-validates, so fixes are detected immediately
 
 ### Negative
 - If ESPN field data is delayed or incorrect, the lock could be blocked unnecessarily
 - Members who don't check email promptly could delay the game for everyone
 - Additional ESPN API call during the lock transition (leaderboard fetch for validation)
-- Late tournament withdrawals after locking are not caught (acceptable — same as real golf)
+- Late tournament withdrawals after locking are not caught (acceptable - same as real golf)

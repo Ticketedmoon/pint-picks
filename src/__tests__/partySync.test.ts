@@ -53,7 +53,7 @@ describe("syncPartyStatus", () => {
     // Stub global.fetch for notification calls
     fetchSpy = vi.fn().mockResolvedValue({ ok: true });
     global.fetch = fetchSpy;
-    // compactAnalytics is fire-and-forget — always resolve
+    // compactAnalytics is fire-and-forget - always resolve
     mocks.compactAnalytics.mockResolvedValue(undefined);
   });
 

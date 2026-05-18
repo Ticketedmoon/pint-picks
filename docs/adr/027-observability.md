@@ -39,13 +39,13 @@ A `withTiming` helper is also exported for wrapping async operations.
 - Logs are retained for 1 hour on Hobby plan, 3 days on Pro
 
 ### All API routes instrumented
-- `/api/espn/leaderboard` — cache hit/miss, ESPN fetch timing, player count
-- `/api/espn/round` — cache hit/miss, round number
-- `/api/rankings` — cache hit/miss, OWGR fetch timing, player count
-- `/api/invite` — email send counts, duration
-- `/api/send-pick-unlock` — party/user context, duration
-- `/api/notify-invalid-picks` — notification counts, duration
-- `/api/submit-unlocked-picks` — party/user context, duration
+- `/api/espn/leaderboard` - cache hit/miss, ESPN fetch timing, player count
+- `/api/espn/round` - cache hit/miss, round number
+- `/api/rankings` - cache hit/miss, OWGR fetch timing, player count
+- `/api/invite` - email send counts, duration
+- `/api/send-pick-unlock` - party/user context, duration
+- `/api/notify-invalid-picks` - notification counts, duration
+- `/api/submit-unlocked-picks` - party/user context, duration
 
 ## Future: OpenTelemetry upgrade path
 For production-grade observability with distributed tracing, the recommended upgrade is:

@@ -23,7 +23,7 @@ Host on **Vercel** (free Hobby tier).
 - **Firebase authorised domain**: `birdie-bets.vercel.app` added to Firebase Auth settings
 
 ### Why Vercel
-- Built by the creators of Next.js — first-class support
+- Built by the creators of Next.js - first-class support
 - **Serverless architecture**: Static pages served from global CDN, API routes run as serverless functions on-demand
 - No pods, containers, or VMs to manage
 - Auto-scaling from 0 to thousands of users
@@ -42,8 +42,8 @@ All limits are well within the needs of this app.
 
 ## Consequences
 ### Positive
-- Zero ops — push code, it's live
-- Global edge network — fast for users anywhere
+- Zero ops - push code, it's live
+- Global edge network - fast for users anywhere
 - Free for hobby/personal use
 - Preview deploys for testing changes before merging
 

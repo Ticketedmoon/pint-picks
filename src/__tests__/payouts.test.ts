@@ -112,7 +112,7 @@ describe("calculatePayouts", () => {
 
   it("payouts can exceed pot with too few members (known edge case)", () => {
     // With only 1 member and both payouts enabled, second + third > pot
-    // This is a known limitation — the UI should enforce minimum member counts
+    // This is a known limitation - the UI should enforce minimum member counts
     const party = makeParty({
       buyIn: 10,
       memberUids: ["a"],

@@ -15,8 +15,8 @@ We need a web application stack that supports:
 - Free or low-cost hosting for a hobby project
 
 ## Decision
-- **Framework**: Next.js 14 (App Router) — SSR, API routes, modern React
-- **Styling**: Tailwind CSS — utility-first, fast prototyping
+- **Framework**: Next.js 14 (App Router) - SSR, API routes, modern React
+- **Styling**: Tailwind CSS - utility-first, fast prototyping
 - **Auth + Database**: Firebase (Authentication + Firestore)
 - **Hosting**: Vercel (free tier)
 

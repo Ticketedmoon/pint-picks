@@ -18,7 +18,7 @@ function parseBrowser(ua: string): string {
 
 /**
  * Write analytics event directly to Firestore from the client.
- * Fire-and-forget — failures are silently ignored so analytics
+ * Fire-and-forget - failures are silently ignored so analytics
  * never block or degrade the user experience.
  */
 function logEvent(data: Record<string, unknown>) {
@@ -33,7 +33,7 @@ function logEvent(data: Record<string, unknown>) {
       timestamp: new Date().toISOString(),
     }).catch(() => {});
   } catch {
-    // Silently ignore — analytics should never break the app
+    // Silently ignore - analytics should never break the app
   }
 }
 

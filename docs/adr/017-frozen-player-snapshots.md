@@ -45,9 +45,9 @@ Legacy parties created before this change may not have `customGroups` or `snapsh
 ### Positive
 - Players no longer shift between groups/wildcards after party creation
 - Picks page loads faster for new parties (no OWGR API call needed)
-- Fair — all party members see the same groups that existed when the party was created
+- Fair - all party members see the same groups that existed when the party was created
 - Backward compatible with existing parties
 
 ### Negative
 - Firestore documents are slightly larger (wildcard list can be 100+ entries)
-- If the tournament field changes after party creation (e.g., late withdrawals), the snapshot won't reflect that — acceptable trade-off for stability
+- If the tournament field changes after party creation (e.g., late withdrawals), the snapshot won't reflect that - acceptable trade-off for stability

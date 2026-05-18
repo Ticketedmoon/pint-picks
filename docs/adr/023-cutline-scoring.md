@@ -1,4 +1,4 @@
-# ADR-023: Cut Line Scoring — Cap Cut Players at CutLine + 1
+# ADR-023: Cut Line Scoring - Cap Cut Players at CutLine + 1
 
 ## Status
 Accepted

@@ -1,4 +1,4 @@
-# 🏌️ BirdieBets — Future Improvement Ideas
+# 🏌️ BirdieBets - Future Improvement Ideas
 
 A brainstorm of features and technical improvements to consider for future development.
 
@@ -27,7 +27,7 @@ A brainstorm of features and technical improvements to consider for future devel
 
 ### Trade / Swap Window
 - Allow a brief window (e.g. before Round 2) to swap one pick
-- Adds strategy — do you drop a player who had a bad R1?
+- Adds strategy - do you drop a player who had a bad R1?
 
 ### Side Bets / Prop Bets
 - "Which group will have the lowest combined score?"
@@ -61,7 +61,7 @@ A brainstorm of features and technical improvements to consider for future devel
 - Offline support for viewing last-known leaderboard state
 
 ### Dark Mode
-- Tailwind dark mode support — many users browse at night during tournaments
+- Tailwind dark mode support - many users browse at night during tournaments
 
 ### Animated Score Updates
 - Subtle animations when scores change on auto-refresh
@@ -87,7 +87,7 @@ A brainstorm of features and technical improvements to consider for future devel
 - Priority for any route that modifies data (picks, unlocks, invites)
 
 ### Firestore Security Rules
-- Currently no Firestore security rules — all reads/writes are client-gated
+- Currently no Firestore security rules - all reads/writes are client-gated
 - Add rules to enforce: only party members can read party data, only the owner can modify party settings, users can only write their own picks
 
 ### Rate Limiting

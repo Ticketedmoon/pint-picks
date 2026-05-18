@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 When a tournament starts and the party transitions to "locked" status, members who haven't
-submitted their picks are stuck — they can no longer access the picks page.
+submitted their picks are stuck - they can no longer access the picks page.
 
 An earlier approach allowed the party owner to submit picks on behalf of members directly.
 This raised trust and fairness concerns: the owner could manipulate another member's picks,
@@ -49,8 +49,8 @@ interface PickUnlock {
 
 ### API Routes
 
-- `POST /api/send-pick-unlock` — validates caller is party creator, generates token, sends email
-- `POST /api/submit-unlocked-picks` — validates token, saves picks + marks token used in one batch
+- `POST /api/send-pick-unlock` - validates caller is party creator, generates token, sends email
+- `POST /api/submit-unlocked-picks` - validates token, saves picks + marks token used in one batch
 
 ### Security
 

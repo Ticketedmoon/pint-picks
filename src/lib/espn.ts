@@ -5,7 +5,7 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
 /** Simple in-memory cache with TTL for client-side ESPN API calls. */
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 
-const CACHE_TTL_MS = 180_000; // 3 minutes — browser-level dedup for pages still calling ESPN directly
+const CACHE_TTL_MS = 180_000; // 3 minutes - browser-level dedup for pages still calling ESPN directly
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -149,7 +149,7 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
     .map((e) => mapESPNEventToTournament(e, majorEventIds))
     .filter((t) => t.status === "in" || t.status === "pre");
 
-  // Sort by start date — earliest first
+  // Sort by start date - earliest first
   tournaments.sort((a, b) =>
     new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   );
@@ -237,12 +237,12 @@ export async function fetchTournamentSnapshot(eventId: string): Promise<{
 
 /**
  * Fetch the current round number for a tournament.
- * Derives from competitor linescores — the highest period with a score
+ * Derives from competitor linescores - the highest period with a score
  * across any competitor indicates the current round.
  * Returns round info including the next tee time, or null if not available.
  *
  * - `currentRound`: the latest round that has scores (completed or in progress)
- * - `displayRound`: the round to show to users — equals currentRound when play
+ * - `displayRound`: the round to show to users - equals currentRound when play
  *   is in progress, or currentRound + 1 when the day's play is done and the
  *   next round hasn't started yet (capped at totalRounds)
  * - `nextRoundTeeTime`: the earliest tee time for `displayRound`

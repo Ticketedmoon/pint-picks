@@ -104,7 +104,7 @@ function PicksContent() {
             })));
             setFieldAvailable(true);
           } else {
-            // Legacy party without snapshot wildcards — fall back to dynamic
+            // Legacy party without snapshot wildcards - fall back to dynamic
             const dynamicData = await fetchDynamicGroups(synced.tournamentId);
             const groupedIds = new Set([
               ...synced.customGroups.A.map((p) => p.id),
@@ -226,7 +226,7 @@ function PicksContent() {
           const synced = await syncPartyStatus(freshParty);
           if (synced.status !== "picking") {
             setParty(synced);
-            setError("🔒 Tournament has started — picks are locked. Your changes were not saved.");
+            setError("🔒 Tournament has started - picks are locked. Your changes were not saved.");
             setSaving(false);
             return;
           }
@@ -279,12 +279,12 @@ function PicksContent() {
           )}
         </div>
         <p className="mt-1 break-words text-sm text-gray-500 sm:text-base">
-          {party?.tournamentName} — Select 1 player from each group + 2 wildcards
+          {party?.tournamentName} - Select 1 player from each group + 2 wildcards
         </p>
         <p className="mt-1 text-xs text-gray-400 sm:text-sm">
           {fieldAvailable
             ? "✅ Groups filtered to confirmed tournament field (ranked by OWGR)"
-            : "⏳ Field not yet announced — showing all ranked players"}
+            : "⏳ Field not yet announced - showing all ranked players"}
         </p>
       </div>
 
@@ -304,7 +304,7 @@ function PicksContent() {
 
       {isLocked && !isUnlocked && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-6">
-          🔒 Picks are locked — the tournament has started.
+          🔒 Picks are locked - the tournament has started.
         </div>
       )}
 
@@ -332,7 +332,7 @@ function PicksContent() {
                 <span className="text-sm text-green-600 break-words">✓ {selected.playerName}</span>
               )}
               {selected && invalidPlayerNames.has(selected.playerName) && (
-                <span className="text-sm text-red-600 break-words">⚠️ {selected.playerName} — not in field</span>
+                <span className="text-sm text-red-600 break-words">⚠️ {selected.playerName} - not in field</span>
               )}
             </h2>
             <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3">
@@ -372,7 +372,7 @@ function PicksContent() {
       {/* Wildcards */}
       <div className="mb-8">
         <h2 className="mb-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-800">
-          Wildcards — Pick 2 (Rank 25+)
+          Wildcards - Pick 2 (Rank 25+)
         </h2>
         <p className="mb-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-gray-500">
           Choose any 2 players not in Groups A–D.
@@ -380,13 +380,13 @@ function PicksContent() {
             <span className="text-green-600 break-words">✓ {picks.wildcard1.playerName}</span>
           )}
           {picks.wildcard1 && invalidPlayerNames.has(picks.wildcard1.playerName) && (
-            <span className="text-red-600 break-words">⚠️ {picks.wildcard1.playerName} — not in field</span>
+            <span className="text-red-600 break-words">⚠️ {picks.wildcard1.playerName} - not in field</span>
           )}
           {picks.wildcard2 && !invalidPlayerNames.has(picks.wildcard2.playerName) && (
             <span className="text-green-600 break-words">✓ {picks.wildcard2.playerName}</span>
           )}
           {picks.wildcard2 && invalidPlayerNames.has(picks.wildcard2.playerName) && (
-            <span className="text-red-600 break-words">⚠️ {picks.wildcard2.playerName} — not in field</span>
+            <span className="text-red-600 break-words">⚠️ {picks.wildcard2.playerName} - not in field</span>
           )}
         </p>
 

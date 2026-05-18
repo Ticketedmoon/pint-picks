@@ -831,7 +831,7 @@ describe("ESPN mapping edge cases", () => {
   });
 });
 
-describe("fetchLeaderboard — thru/displayThru mapping", () => {
+describe("fetchLeaderboard - thru/displayThru mapping", () => {
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
@@ -942,7 +942,7 @@ describe("fetchCurrentRound", () => {
     });
 
     const result = await fetchCurrentRound("evt1");
-    // Round 4 of 4 finished — displayRound capped at 4, no next tee time
+    // Round 4 of 4 finished - displayRound capped at 4, no next tee time
     expect(result).toEqual({ currentRound: 4, displayRound: 4, totalRounds: 4, nextRoundTeeTime: null });
   });
 

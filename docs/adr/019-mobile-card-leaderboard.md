@@ -7,7 +7,7 @@ Accepted
 2026-05-13
 
 ## Context
-The leaderboard table has 9 columns (#, Player, Group A–D, Wild 1–2, Total) which requires horizontal scrolling on mobile. While functional with a "← Scroll →" hint, this is a suboptimal mobile UX — users must scroll sideways to see all picks.
+The leaderboard table has 9 columns (#, Player, Group A–D, Wild 1–2, Total) which requires horizontal scrolling on mobile. While functional with a "← Scroll →" hint, this is a suboptimal mobile UX - users must scroll sideways to see all picks.
 
 ## Decision
 Implement a **dual-view leaderboard**: card layout on mobile, table on desktop.
@@ -41,7 +41,7 @@ The existing table is always shown on `sm:` and above. The toggle is hidden on d
 ### Positive
 - No horizontal scrolling needed on mobile (card view)
 - Users who prefer the table can still access it via toggle
-- Same data and logic — no duplication of business rules
+- Same data and logic - no duplication of business rules
 - All touch targets meet 44px minimum
 
 ### Negative

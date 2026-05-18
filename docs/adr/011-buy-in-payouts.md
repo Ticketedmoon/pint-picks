@@ -42,6 +42,6 @@ The app is designed for friendly competition with real stakes. Users wanted to s
 - Winner banner creates a satisfying conclusion to the tournament
 
 ### Negative
-- No actual money transfer — payouts are informational/honour-system
-- Fixed buy-in options (€10/20/30) — no custom amounts
-- EUR only — no currency selection
+- No actual money transfer - payouts are informational/honour-system
+- Fixed buy-in options (€10/20/30) - no custom amounts
+- EUR only - no currency selection

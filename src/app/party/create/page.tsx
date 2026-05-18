@@ -152,7 +152,7 @@ function CreatePartyContent() {
       if (emailList.length > 0) {
         await addInvites(party.id, emailList, user.uid);
 
-        // Send invite emails — wait for result to show feedback
+        // Send invite emails - wait for result to show feedback
         try {
           const emailRes = await fetch("/api/invite", {
             method: "POST",
@@ -171,7 +171,7 @@ function CreatePartyContent() {
             return;
           }
         } catch {
-          // Email sending failed but party was created — continue
+          // Email sending failed but party was created - continue
         }
       }
 
@@ -227,7 +227,7 @@ function CreatePartyContent() {
                     });
                     return (
                       <option key={t.id} value={t.id}>
-                        {t.name} — {date}
+                        {t.name} - {date}
                         {t.status === "in" ? " 🔴 LIVE" : ""}
                       </option>
                     );
@@ -243,7 +243,7 @@ function CreatePartyContent() {
                   });
                   return (
                     <option key={t.id} value={t.id}>
-                      {t.name} — {date}
+                      {t.name} - {date}
                       {t.status === "in" ? " 🔴 LIVE" : ""}
                     </option>
                   );
@@ -259,11 +259,11 @@ function CreatePartyContent() {
           )}
           {!checkingField && selectedTournament && !fieldAvailable && (
             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              ⏳ The tournament field hasn&apos;t been confirmed on ESPN yet (usually 1–2 days before). You can still create the party — all top-200 ranked players will be shown. Groups will automatically filter to the confirmed field once it&apos;s published.
+              ⏳ The tournament field hasn&apos;t been confirmed on ESPN yet (usually 1–2 days before). You can still create the party - all top-200 ranked players will be shown. Groups will automatically filter to the confirmed field once it&apos;s published.
             </div>
           )}
           {!checkingField && selectedTournament && fieldAvailable && (
-            <p className="text-xs text-green-600 mt-2">✅ Tournament field confirmed — ready to create!</p>
+            <p className="text-xs text-green-600 mt-2">✅ Tournament field confirmed - ready to create!</p>
           )}
         </div>
 
@@ -368,7 +368,7 @@ function CreatePartyContent() {
             <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-green-800">
-                  ✅ Custom groups set — {Object.values(customGroups!).reduce((s, g) => s + g.length, 0)} players in groups
+                  ✅ Custom groups set - {Object.values(customGroups!).reduce((s, g) => s + g.length, 0)} players in groups
                 </span>
                 <button
                   type="button"
