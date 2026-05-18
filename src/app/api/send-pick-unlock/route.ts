@@ -3,7 +3,11 @@ import { getParty, getUserEmail, getUserDisplayName, hasIncompleteOrNoPicks, get
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildUnlockEmail } from "@/lib/emailTemplates";
 
+import { logger } from "@/lib/logger";
+
 export async function POST(request: NextRequest) {
+  const start = Date.now();
+  const route = "/api/send-pick-unlock";
   try {
     const { partyId, callerUid, targetUid } = (await request.json()) as {
       partyId: string;
@@ -67,9 +71,11 @@ export async function POST(request: NextRequest) {
       html: template.html,
     });
 
+    logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, partyId, targetUid });
     return NextResponse.json({ success: true, sentTo: targetEmail });
   } catch (error) {
-    console.error("Send pick unlock error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
       { error: "Failed to send unlock email" },
       { status: 500 }

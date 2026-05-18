@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const OWGR_API = "https://apiweb.owgr.com/api/owgr/rankings/getRankings";
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
@@ -49,12 +50,15 @@ async function fetchTournamentField(eventId: string): Promise<Set<string> | null
 }
 
 export async function GET(request: NextRequest) {
+  const start = Date.now();
+  const route = "/api/rankings";
   const eventId = request.nextUrl.searchParams.get("eventId") || "";
   const cacheKey = eventId || "_all";
 
   // Return cache if fresh
   const cached = cacheMap.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "hit", eventId: eventId || "all" });
     return NextResponse.json(cached.data);
   }
 
@@ -98,9 +102,11 @@ export async function GET(request: NextRequest) {
     };
 
     cacheMap.set(cacheKey, { data: result, fetchedAt: Date.now() });
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "miss", eventId: eventId || "all", players: players.length });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("OWGR fetch error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ route, method: "GET", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
       { error: "Failed to fetch rankings" },
       { status: 500 }

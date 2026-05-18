@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildInvalidPicksEmail } from "@/lib/emailTemplates";
+import { logger } from "@/lib/logger";
 
 interface InvalidMember {
   email: string;
@@ -9,6 +10,8 @@ interface InvalidMember {
 }
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
+  const route = "/api/notify-invalid-picks";
   try {
     const resend = getResend();
     const { partyId, partyName, invalidMembers } = (await request.json()) as {
@@ -53,9 +56,11 @@ export async function POST(request: NextRequest) {
     const sent = results.filter((r) => r.status === "fulfilled").length;
     const failed = results.filter((r) => r.status === "rejected").length;
 
+    logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, sent, failed, total: invalidMembers.length });
     return NextResponse.json({ sent, failed, total: invalidMembers.length });
   } catch (error) {
-    console.error("Invalid picks notification error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
       { error: "Failed to send notifications" },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
 
@@ -7,14 +8,18 @@ const cache = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL_MS = 60_000; // 60 seconds
 
 export async function GET(req: NextRequest) {
+  const start = Date.now();
+  const route = "/api/espn/leaderboard";
   const eventId = req.nextUrl.searchParams.get("eventId");
   if (!eventId) {
+    logger.warn({ route, method: "GET", status: 400, error: "Missing eventId" });
     return NextResponse.json({ error: "eventId is required" }, { status: 400 });
   }
 
   const cacheKey = `leaderboard:${eventId}`;
   const cached = cache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "hit", eventId });
     return NextResponse.json(cached.data, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
     });
@@ -82,10 +87,13 @@ export async function GET(req: NextRequest) {
 
     cache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
 
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "miss", eventId, players: scores.length });
     return NextResponse.json(result, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
     });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    logger.error({ route, method: "GET", status: 502, durationMs: Date.now() - start, error: message, eventId });
     return NextResponse.json({ error: "Failed to fetch leaderboard" }, { status: 502 });
   }
 }

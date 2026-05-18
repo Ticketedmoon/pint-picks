@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
 
@@ -16,14 +17,18 @@ interface ESPNCompetitor {
 }
 
 export async function GET(req: NextRequest) {
+  const start = Date.now();
+  const route = "/api/espn/round";
   const eventId = req.nextUrl.searchParams.get("eventId");
   if (!eventId) {
+    logger.warn({ route, method: "GET", status: 400, error: "Missing eventId" });
     return NextResponse.json({ error: "eventId is required" }, { status: 400 });
   }
 
   const cacheKey = `round:${eventId}`;
   const cached = cache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "hit", eventId });
     return NextResponse.json(cached.data, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
     });
@@ -91,10 +96,13 @@ export async function GET(req: NextRequest) {
     const result = { currentRound: maxPeriod, displayRound, totalRounds, nextRoundTeeTime };
     cache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
 
+    logger.info({ route, method: "GET", status: 200, durationMs: Date.now() - start, cache: "miss", eventId, round: maxPeriod });
     return NextResponse.json(result, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
     });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    logger.error({ route, method: "GET", status: 500, durationMs: Date.now() - start, error: message, eventId });
     return NextResponse.json(null);
   }
 }

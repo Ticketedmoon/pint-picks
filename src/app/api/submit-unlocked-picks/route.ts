@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getParty, getPickUnlock, savePicksWithUnlock } from "@/lib/firestore";
+import { logger } from "@/lib/logger";
 import type { Picks } from "@/types";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
+  const route = "/api/submit-unlocked-picks";
   try {
     const { partyId, callerUid, unlockToken, picks } = (await request.json()) as {
       partyId: string;
@@ -50,9 +53,11 @@ export async function POST(request: NextRequest) {
     // Save picks and mark token as used atomically
     await savePicksWithUnlock(partyId, callerUid, picks, unlockToken);
 
+    logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, partyId, callerUid });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Submit unlocked picks error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
       { error: "Failed to save picks" },
       { status: 500 }

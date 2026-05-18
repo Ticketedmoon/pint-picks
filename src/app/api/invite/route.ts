@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildInviteEmail } from "@/lib/emailTemplates";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
+  const route = "/api/invite";
   try {
     const resend = getResend();
     const { emails, partyName, inviteCode, invitedBy } = await request.json();
@@ -46,9 +49,11 @@ export async function POST(request: NextRequest) {
     const sent = results.filter((r) => r.status === "fulfilled").length;
     const failed = results.filter((r) => r.status === "rejected").length;
 
-    return NextResponse.json({ sent, failed, total: emails.length });
+    logger.info({ route, method: "POST", status: 200, durationMs: Date.now() - start, sent, failed, total: validEmails.length });
+    return NextResponse.json({ sent, failed, total: validEmails.length });
   } catch (error) {
-    console.error("Email invite error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
       { error: "Failed to send invites" },
       { status: 500 }
