@@ -88,9 +88,6 @@ export function TournamentLeaderboardModal({ scores, onClose }: TournamentLeader
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-2">
-                        {player.headshot && (
-                          <img src={player.headshot} alt="" className="h-6 w-6 rounded-full" referrerPolicy="no-referrer" />
-                        )}
                         <span className={`text-xs font-medium sm:text-sm ${cut ? "text-red-700 line-through" : "text-gray-900"}`}>
                           {player.playerName}
                         </span>
