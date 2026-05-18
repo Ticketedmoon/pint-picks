@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
       const byBrowser: Record<string, number> = {};
       const byTimezone: Record<string, number> = {};
       const dailyBuckets: Record<string, number> = {};
-      const byUser: Record<string, { email: string | null; views: number; clicks: number; lastVisit: string; pages: Record<string, number> }> = {};
+      const byUser: Record<string, { email: string | null; views: number; clicks: number; lastVisit: string; pages: Record<string, number>; dailyDates: Record<string, number> }> = {};
       const tournamentDocs: TournamentAnalytics[] = [];
 
       for (const d of analyticsSnap.docs) {
