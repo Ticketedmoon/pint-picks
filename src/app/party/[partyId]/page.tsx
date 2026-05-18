@@ -18,12 +18,31 @@ import {
   EMAIL_BANNER_MS,
   INVITE_RESULT_MS,
 } from "@/lib/constants";
-import { fetchFirstTeeTime, fetchCurrentRound, fetchLeaderboard, formatScoreToPar } from "@/lib/espn";
+import { fetchFirstTeeTime, formatScoreToPar } from "@/lib/espn";
 import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty } from "@/lib/firestore";
 import { buildLeaderboardEntries } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
-import type { LeaderboardEntry, Party, PlayerScore } from "@/types";
+import type { LeaderboardEntry, LeaderboardResult, Party, PlayerScore } from "@/types";
+
+/** Fetch leaderboard via server-side API route (shared edge cache). */
+async function fetchLeaderboardViaServer(eventId: string): Promise<LeaderboardResult> {
+  const res = await fetch(`/api/espn/leaderboard?eventId=${eventId}`);
+  if (!res.ok) throw new Error(`Leaderboard API error: ${res.status}`);
+  return res.json();
+}
+
+/** Fetch current round via server-side API route (shared edge cache). */
+async function fetchCurrentRoundViaServer(eventId: string): Promise<{
+  currentRound: number;
+  displayRound: number;
+  totalRounds: number;
+  nextRoundTeeTime: string | null;
+} | null> {
+  const res = await fetch(`/api/espn/round?eventId=${eventId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
 
 function PartyContent() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -77,7 +96,7 @@ function PartyContent() {
     const [allPicks, usersInfo, leaderboardResult] = await Promise.all([
       getAllPicksForParty(partyData.id),
       getUsersInfo(partyData.memberUids),
-      fetchLeaderboard(partyData.tournamentId).catch(() => ({ scores: [] as PlayerScore[], cutLine: null, cutRound: null, coursePar: null })),
+      fetchLeaderboardViaServer(partyData.tournamentId).catch(() => ({ scores: [] as PlayerScore[], cutLine: null, cutRound: null, coursePar: null })),
     ]);
 
     setCutLine(leaderboardResult.cutLine);
@@ -104,7 +123,7 @@ function PartyContent() {
         const [lb] = await Promise.all([
           buildLeaderboard(synced),
           shouldFetchRound
-            ? fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {})
+            ? fetchCurrentRoundViaServer(synced.tournamentId).then(setCurrentRound).catch(() => {})
             : Promise.resolve(),
         ]);
         setLeaderboard(lb);
@@ -129,7 +148,7 @@ function PartyContent() {
       const [lb] = await Promise.all([
         buildLeaderboard(synced),
         shouldFetchRound
-          ? fetchCurrentRound(synced.tournamentId).then(setCurrentRound).catch(() => {})
+          ? fetchCurrentRoundViaServer(synced.tournamentId).then(setCurrentRound).catch(() => {})
           : Promise.resolve(),
       ]);
       setLeaderboard(lb);
@@ -437,9 +456,9 @@ function PartyContent() {
           {tournamentScores.length > 0 && (
             <button
               onClick={() => setShowTournamentLeaderboard(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-800 shadow-sm transition-colors hover:bg-indigo-200"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-green-800 ring-2 ring-green-600 shadow-sm transition-all hover:bg-green-600 hover:text-white hover:shadow-md active:scale-95"
             >
-              🏌️ Tournament Leaderboard
+              📊 View Leaderboard
             </button>
           )}
         </div>
