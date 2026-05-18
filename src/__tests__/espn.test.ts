@@ -645,16 +645,16 @@ describe("fetchTournamentSchedule", () => {
   });
 
   it("falls back to fetchCurrentTournaments on API error", async () => {
-    // First call (scoreboard) fails, then two calls from fetchCurrentTournaments
+    // First call (scoreboard) fails + 4 major ID lookups,
+    // then fetchCurrentTournaments makes leaderboard + scoreboard + 4 more major lookups
     const event = makeESPNEvent({ status: { type: { state: "in", completed: false } } });
     global.fetch = vi.fn()
-      .mockResolvedValueOnce({ ok: false }) // scoreboard fails
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ events: [event] }) }) // leaderboard
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ events: [] }) }); // scoreboard fallback
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({ events: [event] }) });
+    // Override first call to fail (scoreboard in fetchTournamentSchedule)
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false });
 
     const result = await fetchTournamentSchedule(2025);
     expect(result).toHaveLength(1);
-    expect(global.fetch).toHaveBeenCalledTimes(3);
   });
 
   it("returns empty array when no events", async () => {

@@ -130,3 +130,47 @@ describe("buildInvalidPicksEmail", () => {
     expect(html).toContain("&lt;img");
   });
 });
+
+import { buildMajorReminderEmail } from "@/lib/emailTemplates";
+
+describe("buildMajorReminderEmail", () => {
+  const params = {
+    displayName: "Shane",
+    tournamentName: "The Masters",
+    courseName: "Augusta National",
+    startDate: "2026-04-09",
+    createPartyUrl: "https://birdiebets.com/party/create",
+  };
+
+  it("returns subject with tournament name", () => {
+    const { subject } = buildMajorReminderEmail(params);
+    expect(subject).toContain("The Masters");
+    expect(subject).toContain("⭐");
+  });
+
+  it("includes display name in HTML", () => {
+    const { html } = buildMajorReminderEmail(params);
+    expect(html).toContain("Shane");
+  });
+
+  it("includes course name and formatted date", () => {
+    const { html } = buildMajorReminderEmail(params);
+    expect(html).toContain("Augusta National");
+    expect(html).toContain("2026");
+  });
+
+  it("includes CTA link to create party", () => {
+    const { html } = buildMajorReminderEmail(params);
+    expect(html).toContain("https://birdiebets.com/party/create");
+    expect(html).toContain("Create a Party");
+  });
+
+  it("escapes HTML in user-provided fields", () => {
+    const { html } = buildMajorReminderEmail({
+      ...params,
+      displayName: '<script>alert("xss")</script>',
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+});

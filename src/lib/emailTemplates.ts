@@ -133,3 +133,44 @@ export function buildInvalidPicksEmail(params: {
     `),
   };
 }
+
+export function buildMajorReminderEmail(params: {
+  displayName: string;
+  tournamentName: string;
+  courseName: string;
+  startDate: string;
+  createPartyUrl: string;
+}): { subject: string; html: string } {
+  const { displayName, tournamentName, courseName, startDate, createPartyUrl } = params;
+  const dateStr = new Date(startDate).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return {
+    subject: `⭐ ${escapeHtml(tournamentName)} is coming up — create your party!`,
+    html: emailWrapper("⛳", `
+      <h1 style="color: #15803d; font-size: 22px; text-align: center; margin-bottom: 8px;">
+        Major Alert!
+      </h1>
+      <p style="color: #4b5563; text-align: center; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">
+        Hi <strong>${escapeHtml(displayName)}</strong>, the
+        <strong>${escapeHtml(tournamentName)}</strong> is just around the corner!
+      </p>
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 24px; text-align: center;">
+        <p style="color: #166534; font-size: 14px; margin: 0 0 4px 0;">
+          📍 <strong>${escapeHtml(courseName)}</strong>
+        </p>
+        <p style="color: #166534; font-size: 14px; margin: 0;">
+          📅 <strong>${escapeHtml(dateStr)}</strong>
+        </p>
+      </div>
+      <p style="color: #4b5563; text-align: center; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+        Get your friends together, pick your golfers, and compete on the leaderboard.
+        Don't miss out!
+      </p>
+      ${ctaButton(createPartyUrl, "Create a Party")}
+    `),
+  };
+}

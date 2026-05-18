@@ -45,7 +45,45 @@ async function cachedFetch(url: string): Promise<Response> {
   return res;
 }
 
-function mapESPNEventToTournament(event: ESPNEvent): Tournament {
+/**
+ * Stable ESPN tournament IDs for the 4 majors.
+ * Source: https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/tournaments
+ * These IDs are consistent across seasons.
+ */
+const MAJOR_TOURNAMENT_IDS = ["15", "24", "29", "33"];
+
+const ESPN_CORE = "https://sports.core.api.espn.com/v2/sports/golf/leagues/pga";
+
+/** Fetch the current season's event IDs for the 4 majors from ESPN's core API. */
+async function fetchMajorEventIds(): Promise<Set<string>> {
+  const year = new Date().getFullYear();
+  const ids = new Set<string>();
+  try {
+    const results = await Promise.all(
+      MAJOR_TOURNAMENT_IDS.map(async (tid) => {
+        try {
+          const res = await cachedFetch(`${ESPN_CORE}/tournaments/${tid}/seasons/${year}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          // event.$ref contains the event ID in the URL
+          const eventRef = data.event?.["$ref"] as string | undefined;
+          const match = eventRef?.match(/events\/(\d+)/);
+          return match ? match[1] : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+    for (const id of results) {
+      if (id) ids.add(id);
+    }
+  } catch {
+    // Fallback: empty set, majors won't be highlighted
+  }
+  return ids;
+}
+
+function mapESPNEventToTournament(event: ESPNEvent, majorEventIds: Set<string>): Tournament {
   return {
     id: event.id,
     name: event.tournament?.displayName || event.name,
@@ -54,7 +92,7 @@ function mapESPNEventToTournament(event: ESPNEvent): Tournament {
     courseName: event.courses?.[0]?.name || "TBD",
     purse: event.displayPurse,
     status: event.status.type.state as "pre" | "in" | "post",
-    isMajor: event.tournament?.major || false,
+    isMajor: event.tournament?.major || majorEventIds.has(event.id),
   };
 }
 
@@ -91,9 +129,10 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
     `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const dateRange = `${formatDate(now)}-${formatDate(endOfYear)}`;
 
-  const [leaderboardRes, scoreboardRes] = await Promise.all([
+  const [leaderboardRes, scoreboardRes, majorEventIds] = await Promise.all([
     cachedFetch(`${ESPN_BASE}/leaderboard`),
     cachedFetch(`${ESPN_BASE}/pga/scoreboard?dates=${dateRange}`),
+    fetchMajorEventIds(),
   ]);
 
   const leaderboardData = leaderboardRes.ok ? await leaderboardRes.json() : { events: [] };
@@ -107,7 +146,7 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
 
   // Only show ongoing or future tournaments
   const tournaments = Array.from(eventMap.values())
-    .map(mapESPNEventToTournament)
+    .map((e) => mapESPNEventToTournament(e, majorEventIds))
     .filter((t) => t.status === "in" || t.status === "pre");
 
   // Sort by start date — earliest first
@@ -118,15 +157,15 @@ export async function fetchCurrentTournaments(): Promise<Tournament[]> {
 }
 
 export async function fetchTournamentSchedule(year: number = new Date().getFullYear()): Promise<Tournament[]> {
-  // ESPN doesn't have a dedicated schedule endpoint for golf, but we can
-  // use the scoreboard endpoint for the season
-  const res = await cachedFetch(`${ESPN_BASE}/pga/scoreboard?dates=${year}`);
+  const [res, majorEventIds] = await Promise.all([
+    cachedFetch(`${ESPN_BASE}/pga/scoreboard?dates=${year}`),
+    fetchMajorEventIds(),
+  ]);
   if (!res.ok) {
-    // Fallback to leaderboard which shows current/recent events
     return fetchCurrentTournaments();
   }
   const data = await res.json();
-  return (data.events || []).map(mapESPNEventToTournament);
+  return (data.events || []).map((e: ESPNEvent) => mapESPNEventToTournament(e, majorEventIds));
 }
 
 export async function fetchLeaderboard(eventId: string): Promise<LeaderboardResult> {

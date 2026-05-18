@@ -39,7 +39,10 @@ function CreatePartyContent() {
     fetchCurrentTournaments()
       .then((t) => {
         setTournaments(t);
-        if (t.length > 0) setSelectedTournament(t[0].id);
+        // Auto-select a major if available, otherwise first tournament
+        const major = t.find((tour) => tour.isMajor);
+        if (major) setSelectedTournament(major.id);
+        else if (t.length > 0) setSelectedTournament(t[0].id);
       })
       .catch(() => setError("Failed to load tournaments"))
       .finally(() => setLoadingTournaments(false));
@@ -214,20 +217,38 @@ function CreatePartyContent() {
               className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500"
               required
             >
-              {tournaments.map((t) => {
-                const date = new Date(t.startDate).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                });
-                return (
-                  <option key={t.id} value={t.id}>
-                    {t.name} — {date}
-                    {t.isMajor ? " ⭐ Major" : ""}
-                    {t.status === "in" ? " 🔴 LIVE" : ""}
-                  </option>
-                );
-              })}
+              {tournaments.some((t) => t.isMajor) && (
+                <optgroup label="⭐ Majors">
+                  {tournaments.filter((t) => t.isMajor).map((t) => {
+                    const date = new Date(t.startDate).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    });
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name} — {date}
+                        {t.status === "in" ? " 🔴 LIVE" : ""}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              )}
+              <optgroup label="Other Tournaments">
+                {tournaments.filter((t) => !t.isMajor).map((t) => {
+                  const date = new Date(t.startDate).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  });
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {t.name} — {date}
+                      {t.status === "in" ? " 🔴 LIVE" : ""}
+                    </option>
+                  );
+                })}
+              </optgroup>
             </select>
           )}
           {checkingField && (
