@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { joinPartyByCode } from "@/lib/firestore";
 import { Suspense } from "react";
+import Link from "next/link";
 
 function JoinPartyForm() {
   const { user } = useAuth();
@@ -41,6 +42,15 @@ function JoinPartyForm() {
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6 sm:py-10">
+      <Link
+        href="/sports"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <path fillRule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z" clipRule="evenodd" />
+        </svg>
+        Back to sports
+      </Link>
       <h1 className="mb-8 text-2xl font-bold text-gray-900 sm:mb-10 sm:text-3xl">Join a Party</h1>
 
       <form onSubmit={handleSubmit} className="w-full space-y-6 sm:space-y-8">
