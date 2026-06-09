@@ -38,7 +38,16 @@ service cloud.firestore {
       // Only the creator can delete.
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && isPartyMember(partyId);
+      allow update: if isSignedIn() && (
+        isPartyMember(partyId)
+        || (
+          // Allow join-by-code: non-member adding only their own UID to memberUids
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+          && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+          && request.resource.data.memberUids.size() == resource.data.memberUids.size() + 1
+          && request.auth.uid in request.resource.data.memberUids
+        )
+      );
       allow delete: if isSignedIn() && isPartyCreator(partyId);
 
       // ─── Picks (subcollection of party) ───
