@@ -1,10 +1,10 @@
-# 🏌️ BirdieBets
+# 🍺 PintPicks
 
-**Pick your golfers. Track the tournament. Win the pot.**
+**Pick your players. Track the tournament. Win the pot.**
 
-🌐 **Live at [birdie-bets.vercel.app](https://birdie-bets.vercel.app/)**
+🌐 **Live at [pintpicks.vercel.app](https://pintpicks.vercel.app/)**
 
-BirdieBets is a golf tournament pool tracker where you and your friends each pick 6 PGA Tour players from skill-tiered groups, then watch the leaderboard update live as the tournament unfolds. The lowest combined score wins the pot.
+PintPicks is a multi-sport tournament pool tracker where you and your friends each pick 6 players (or teams) from skill-tiered groups, then watch the leaderboard update live as the tournament unfolds. Currently supports golf (PGA Tour) and football (FIFA World Cup, Premier League, Champions League).
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
@@ -88,8 +88,8 @@ You pick 1 from each group + 2 wildcards. No stacking the world's best!
 
 ```bash
 # Clone the repo
-git clone https://github.com/Ticketedmoon/birdie-bets.git
-cd birdie-bets
+git clone https://github.com/Ticketedmoon/pintpicks.git
+cd pintpicks
 
 # Install dependencies
 npm install

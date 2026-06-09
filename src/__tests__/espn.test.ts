@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { calculateEffectiveScore, formatScoreToPar, fetchLeaderboard, fetchTournamentSnapshot, fetchTournamentStatus, fetchFirstTeeTime, fetchCurrentTournaments, fetchPlayersFromLeaderboard, fetchTournamentSchedule, fetchDynamicGroups, fetchCurrentRound, clearEspnCache } from "@/lib/espn";
+import { calculateEffectiveScore, formatScoreToPar, fetchLeaderboard, fetchTournamentSnapshot, fetchTournamentStatus, fetchFirstTeeTime, fetchCurrentTournaments, fetchPlayersFromLeaderboard, fetchTournamentSchedule, fetchDynamicGroups, fetchCurrentRound, clearEspnCache } from "@/lib/sports/golf/espn";
 import type { PlayerScore } from "@/types";
 
 function makePlayerScore(overrides: Partial<PlayerScore> = {}): PlayerScore {

@@ -21,7 +21,7 @@ function buildFooter(unsubscribeUrl?: string): string {
   return `
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
     <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-      BirdieBets - Pick your golfers, track tournaments, compete with friends.
+      PintPicks - Pick your players, track tournaments, compete with friends.
     </p>${unsubLink}`;
 }
 

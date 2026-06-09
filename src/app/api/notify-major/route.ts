@@ -3,7 +3,7 @@ import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildMajorReminderEmail } from "@/lib/emailTemplates";
-import { fetchCurrentTournaments } from "@/lib/espn";
+import { fetchCurrentTournaments } from "@/lib/sports/golf/espn";
 import { logger } from "@/lib/logger";
 
 const DAYS_BEFORE = 7; // notify when major is within 7 days

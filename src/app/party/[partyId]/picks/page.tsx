@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getParty, savePicks, getPicks, getPickUnlock } from "@/lib/firestore";
-import { fetchDynamicGroups } from "@/lib/espn";
+import { fetchDynamicGroups } from "@/lib/sports/golf/espn";
 import { syncPartyStatus } from "@/lib/partySync";
-import { GROUP_LABELS } from "@/lib/playerGroups";
+import { GROUP_LABELS } from "@/lib/sports/golf/playerGroups";
+import { FOOTBALL_LEAGUES } from "@/lib/sports/football/leagues";
 import type { Party, Player, Picks, PlayerPick, PlayerGroup, PickUnlock } from "@/types";
 import { Suspense } from "react";
 
@@ -103,8 +105,12 @@ function PicksContent() {
               ...p, shortName: p.displayName, lastName: p.displayName.split(" ").pop() || "", amateur: false,
             })));
             setFieldAvailable(true);
+          } else if (synced.sportType === "football") {
+            // Football party with no wildcards snapshot: no dynamic fallback available
+            setWildcardPlayers([]);
+            setFieldAvailable(true);
           } else {
-            // Legacy party without snapshot wildcards - fall back to dynamic
+            // Legacy golf party without snapshot wildcards: fall back to dynamic
             const dynamicData = await fetchDynamicGroups(synced.tournamentId);
             const groupedIds = new Set([
               ...synced.customGroups.A.map((p) => p.id),
@@ -261,11 +267,35 @@ function PicksContent() {
     );
   }
 
+  const isFootball = party?.sportType === "football";
+  const leagueConfig = isFootball && party?.leagueSlug ? FOOTBALL_LEAGUES[party.leagueSlug] : null;
+  const isCountry = leagueConfig?.teamType === "country";
+  const entityLabel = isFootball ? (isCountry ? "country" : "team") : "player";
+  const entitiesLabel = isFootball ? (isCountry ? "countries" : "teams") : "players";
+
+  const footballGroupLabels: Record<string, string> = {
+    A: `Tier A - Favourites`,
+    B: `Tier B - Contenders`,
+    C: `Tier C - ${isCountry ? "Rising Nations" : "Midfield"}`,
+    D: `Tier D - Underdogs`,
+  };
+
   return (
     <div className="w-full px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
       <div className="mb-8">
+        <Link
+          href={`/party/${partyId}`}
+          className="mb-2 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z" clipRule="evenodd" />
+          </svg>
+          Back to party
+        </Link>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="break-words text-2xl font-bold text-gray-900 sm:text-3xl">Pick Your Players</h1>
+          <h1 className="break-words text-2xl font-bold text-gray-900 sm:text-3xl">
+            {isFootball ? (isCountry ? "Pick Your Countries" : "Pick Your Teams") : "Pick Your Players"}
+          </h1>
           {!isLocked && (
             <button
               onClick={() => {
@@ -279,12 +309,14 @@ function PicksContent() {
           )}
         </div>
         <p className="mt-1 break-words text-sm text-gray-500 sm:text-base">
-          {party?.tournamentName} - Select 1 player from each group + 2 wildcards
+          {party?.tournamentName} - Select 1 {entityLabel} from each {isFootball ? "tier" : "group"} + 2 wildcards
         </p>
         <p className="mt-1 text-xs text-gray-400 sm:text-sm">
-          {fieldAvailable
-            ? "✅ Groups filtered to confirmed tournament field (ranked by OWGR)"
-            : "⏳ Field not yet announced - showing all ranked players"}
+          {isFootball
+            ? `✅ ${isCountry ? "Countries" : "Teams"} ranked by ${leagueConfig?.slug === "fifa.world" ? "FIFA rankings" : leagueConfig?.slug === "eng.1" ? "last season standings" : "UEFA coefficient"}`
+            : fieldAvailable
+              ? "✅ Groups filtered to confirmed tournament field (ranked by OWGR)"
+              : "⏳ Field not yet announced - showing all ranked players"}
         </p>
       </div>
 
@@ -327,7 +359,7 @@ function PicksContent() {
         return (
           <div key={group} className="mb-8">
             <h2 className="mb-3 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-800">
-              {GROUP_LABELS[group]}
+              {isFootball ? footballGroupLabels[group] : GROUP_LABELS[group]}
               {selected && !invalidPlayerNames.has(selected.playerName) && (
                 <span className="text-sm text-green-600 break-words">✓ {selected.playerName}</span>
               )}
@@ -372,10 +404,10 @@ function PicksContent() {
       {/* Wildcards */}
       <div className="mb-8">
         <h2 className="mb-1 flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-800">
-          Wildcards - Pick 2 (Rank 25+)
+          Wildcards - Pick 2 {isFootball ? "" : "(Rank 25+)"}
         </h2>
         <p className="mb-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-gray-500">
-          Choose any 2 players not in Groups A–D.
+          Choose any 2 {entitiesLabel} not in {isFootball ? "Tiers A-D" : "Groups A-D"}.
           {picks.wildcard1 && !invalidPlayerNames.has(picks.wildcard1.playerName) && (
             <span className="text-green-600 break-words">✓ {picks.wildcard1.playerName}</span>
           )}
@@ -392,7 +424,7 @@ function PicksContent() {
 
         <input
           type="text"
-          placeholder="Search players..."
+          placeholder={`Search ${entitiesLabel}...`}
           value={wildcardSearch}
           onChange={(e) => setWildcardSearch(e.target.value)}
           className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500"
@@ -431,7 +463,7 @@ function PicksContent() {
           })}
           {filteredWildcards.length === 0 && (
             <p className="col-span-2 py-4 text-center text-gray-400 sm:col-span-3">
-              {wildcardSearch ? "No players match your search" : "Loading players..."}
+              {wildcardSearch ? `No ${entitiesLabel} match your search` : loading ? `Loading ${entitiesLabel}...` : `No wildcards available`}
             </p>
           )}
         </div>
@@ -442,7 +474,7 @@ function PicksContent() {
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-600">
             {[picks.groupA, picks.groupB, picks.groupC, picks.groupD, picks.wildcard1, picks.wildcard2].filter(Boolean).length}
-            /6 players selected
+            /6 {entitiesLabel} selected
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">

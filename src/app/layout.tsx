@@ -28,20 +28,20 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "BirdieBets",
-    template: "%s | BirdieBets",
+    default: "PintPicks",
+    template: "%s | PintPicks",
   },
-  description: "Pick your golfers, track the tournament, compete with friends",
+  description: "Pick your players, track the action, compete with friends",
   openGraph: {
-    title: "BirdieBets",
-    description: "Pick your golfers, track the tournament, compete with friends",
+    title: "PintPicks",
+    description: "Pick your players, track the action, compete with friends",
     type: "website",
-    siteName: "BirdieBets",
+    siteName: "PintPicks",
   },
   twitter: {
     card: "summary",
-    title: "BirdieBets",
-    description: "Pick your golfers, track the tournament, compete with friends",
+    title: "PintPicks",
+    description: "Pick your players, track the action, compete with friends",
   },
   manifest: "/manifest.json",
 };

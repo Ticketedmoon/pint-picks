@@ -42,7 +42,10 @@ export async function createParty(
   secondPlacePayout: boolean = false,
   thirdPlacePayout: boolean = false,
   customGroups?: Party["customGroups"],
-  snapshotWildcards?: Party["snapshotWildcards"]
+  snapshotWildcards?: Party["snapshotWildcards"],
+  sportType?: Party["sportType"],
+  leagueSlug?: Party["leagueSlug"],
+  payoutSplit?: Party["payoutSplit"],
 ): Promise<Party> {
   const partyRef = doc(collection(db(), "parties"));
   const party: Omit<Party, "id"> = {
@@ -59,8 +62,11 @@ export async function createParty(
     currency,
     secondPlacePayout,
     thirdPlacePayout,
+    ...(sportType ? { sportType } : {}),
+    ...(leagueSlug ? { leagueSlug } : {}),
     ...(customGroups ? { customGroups } : {}),
     ...(snapshotWildcards ? { snapshotWildcards } : {}),
+    ...(payoutSplit ? { payoutSplit } : {}),
   };
   await setDoc(partyRef, party);
   return { id: partyRef.id, ...party };

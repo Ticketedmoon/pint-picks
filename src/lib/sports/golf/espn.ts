@@ -367,7 +367,7 @@ export async function fetchDynamicGroups(eventId?: string): Promise<{
     };
   } catch {
     // Fallback to hardcoded groups from playerGroups.ts
-    const { PLAYER_GROUPS, getGroupedPlayerIds } = await import("@/lib/playerGroups");
+    const { PLAYER_GROUPS, getGroupedPlayerIds } = await import("@/lib/sports/golf/playerGroups");
     const recentPlayers = await fetchPlayersFromRecentTournament();
     const groupedIds = getGroupedPlayerIds();
     return {

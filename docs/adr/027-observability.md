@@ -51,7 +51,7 @@ A `withTiming` helper is also exported for wrapping async operations.
 For production-grade observability with distributed tracing, the recommended upgrade is:
 
 1. Install `@vercel/otel` and `@opentelemetry/api`
-2. Create `src/instrumentation.ts` with `registerOTel('birdie-bets')`
+2. Create `src/instrumentation.ts` with `registerOTel('pintpicks')`
 3. All API routes and fetch calls are automatically traced with spans
 4. Custom spans can be added for business-critical operations
 
@@ -76,3 +76,4 @@ Requirements:
 ### Negative
 - Structured JSON logs are less human-readable than plain text in local dev
 - Log retention on Vercel Hobby plan is limited to 1 hour
+

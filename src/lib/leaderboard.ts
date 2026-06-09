@@ -1,5 +1,6 @@
 import { PICK_SLOT_DEFS } from "@/lib/constants";
-import { calculateEffectiveScore, formatScoreToPar } from "@/lib/espn";
+import { calculateEffectiveScore, formatScoreToPar } from "@/lib/sports/golf/espn";
+import { getSportConfig } from "@/lib/sports/registry";
 import type { LeaderboardEntry, Party, Picks, PlayerScore } from "@/types";
 
 /**
@@ -18,6 +19,7 @@ export function buildLeaderboardEntries(
   scores: PlayerScore[],
   cutLine?: number | null,
 ): LeaderboardEntry[] {
+  const sport = getSportConfig(party.sportType);
   const scoreByIdMap = new Map<string, PlayerScore>();
   const scoreByNameMap = new Map<string, PlayerScore>();
 
@@ -35,55 +37,70 @@ export function buildLeaderboardEntries(
     const userInfo = usersInfo[uid] || { displayName: "Unknown" };
 
     let totalScore = 0;
-    const resolvedPicks = picks
-      ? PICK_SLOT_DEFS.map(({ key, label }) => {
-          const pick = picks[key];
+    const resolvedPicks = PICK_SLOT_DEFS.map(({ key, label }) => {
+      const pick = picks?.[key];
 
-          if (!pick?.playerId) {
-            return {
-              group: label,
-              playerId: "",
-              playerName: "Not picked",
-              scoreToPar: 0,
-              displayScore: "-",
-              status: "playing" as const,
-            };
-          }
+      if (!pick?.playerId) {
+        return {
+          group: label,
+          playerId: "",
+          playerName: "Not picked",
+          scoreToPar: 0,
+          displayScore: "-",
+          status: "playing" as const,
+        };
+      }
 
-          const score = findScore(pick.playerId, pick.playerName || "");
-          if (!score) {
-            return {
-              group: label,
-              playerId: pick.playerId,
-              playerName: pick.playerName || "Unknown",
-              scoreToPar: 0,
-              displayScore: "-",
-              status: "playing" as const,
-            };
-          }
+      const score = findScore(pick.playerId, pick.playerName || "");
+      if (!score) {
+        return {
+          group: label,
+          playerId: pick.playerId,
+          playerName: pick.playerName || "Unknown",
+          scoreToPar: 0,
+          displayScore: sport.pendingScoreDisplay,
+          status: "playing" as const,
+        };
+      }
 
-          const { effectiveScore, penalty, wasCapped } = calculateEffectiveScore(score, cutLine);
-          totalScore += effectiveScore;
+      // Golf uses effective score calculation (cut/cap/penalty logic)
+      if (sport.hasCutMechanic) {
+        const { effectiveScore, penalty, wasCapped } = calculateEffectiveScore(score, cutLine);
+        totalScore += effectiveScore;
 
-          const displayParts = [formatScoreToPar(effectiveScore)];
-          if (penalty > 0) displayParts.push(`(+${penalty})`);
+        const displayParts = [formatScoreToPar(effectiveScore)];
+        if (penalty > 0) displayParts.push(`(+${penalty})`);
 
-          const roundScoresToPar = buildRoundScoresToPar(score.roundScores);
+        const roundScoresToPar = buildRoundScoresToPar(score.roundScores);
 
-          return {
-            group: label,
-            playerId: pick.playerId,
-            playerName: score.playerName,
-            scoreToPar: effectiveScore,
-            displayScore: displayParts.join(" "),
-            status: score.status,
-            headshot: score.headshot,
-            displayThru: score.displayThru,
-            ...(wasCapped && { actualDisplayScore: formatScoreToPar(score.scoreToPar) }),
-            ...(roundScoresToPar && { roundScoresToPar }),
-          };
-        })
-      : [];
+        return {
+          group: label,
+          playerId: pick.playerId,
+          playerName: score.playerName,
+          scoreToPar: effectiveScore,
+          displayScore: displayParts.join(" "),
+          status: score.status,
+          headshot: score.headshot,
+          displayThru: score.displayThru,
+          ...(wasCapped && { actualDisplayScore: formatScoreToPar(score.scoreToPar) }),
+          ...(roundScoresToPar && { roundScoresToPar }),
+        };
+      }
+
+      // Generic scoring: use raw scoreToPar from the score data
+      totalScore += score.scoreToPar;
+      const roundScoresToPar = buildRoundScoresToPar(score.roundScores);
+      return {
+        group: label,
+        playerId: pick.playerId,
+        playerName: score.playerName,
+        scoreToPar: score.scoreToPar,
+        displayScore: sport.formatScore(score.scoreToPar),
+        status: score.status,
+        headshot: score.headshot,
+        ...(roundScoresToPar && { roundScoresToPar }),
+      };
+    });
 
     return {
       userName: userInfo.displayName,
@@ -91,10 +108,14 @@ export function buildLeaderboardEntries(
       uid,
       picks: resolvedPicks,
       totalScore,
-      displayTotal: formatScoreToPar(totalScore),
+      displayTotal: sport.formatTotal(totalScore),
     };
   });
 
-  entries.sort((a, b) => a.totalScore - b.totalScore);
+  entries.sort((a, b) =>
+    sport.sortDirection === "asc"
+      ? a.totalScore - b.totalScore
+      : b.totalScore - a.totalScore
+  );
   return entries;
 }

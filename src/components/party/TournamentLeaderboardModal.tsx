@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { formatScoreToPar } from "@/lib/espn";
-import { isCutStatus } from "@/lib/scoring";
+import { formatScoreToPar } from "@/lib/sports/golf/espn";
+import { isCutStatus } from "@/lib/sports/golf/scoring";
 import type { PlayerScore } from "@/types";
 
 interface TournamentLeaderboardModalProps {

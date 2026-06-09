@@ -1,4 +1,4 @@
-# BirdieBets UI Component Skill
+# PintPicks UI Component Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: add component, UI change, leaderboard change, modal, button, card, tabl
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Stack:** Next.js 16, React 19, Tailwind CSS 4
 - **Components:** `src/components/`
 - **Pages:** `src/app/` (all `"use client"`)
@@ -47,3 +47,4 @@ USE FOR: add component, UI change, leaderboard change, modal, button, card, tabl
 3. Import in page (use `dynamic()` for heavy components)
 4. Test responsiveness on both mobile and desktop widths
 5. Run `npm run test:coverage` after changes
+

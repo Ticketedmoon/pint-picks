@@ -1,4 +1,4 @@
-# BirdieBets Testing Skill
+# PintPicks Testing Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: run tests, add test, fix test, test coverage, write tests, test failure
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Test framework:** Vitest 3.x with `vi.mock()` for external dependencies
 - **Test location:** `src/__tests__/`
 - **Coverage config:** `vitest.config.ts` - 90% minimum on `src/lib/` modules
@@ -74,3 +74,4 @@ USE FOR: run tests, add test, fix test, test coverage, write tests, test failure
 2. Add/fix tests
 3. Re-run coverage to verify thresholds (90% on `src/lib/`)
 4. Run `npm run build` to catch type errors not caught by Vitest
+

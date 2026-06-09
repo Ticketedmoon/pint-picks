@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isCutStatus, getScoreColor, getTotalScoreColor } from "@/lib/scoring";
+import { isCutStatus, getScoreColor, getTotalScoreColor } from "@/lib/sports/golf/scoring";
 
 describe("isCutStatus", () => {
   it("returns true for cut", () => expect(isCutStatus("cut")).toBe(true));

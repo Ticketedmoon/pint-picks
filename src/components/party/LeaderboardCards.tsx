@@ -1,7 +1,7 @@
 import type { User } from "firebase/auth";
 import { PICK_LABELS } from "@/lib/constants";
 import { calculatePayouts } from "@/lib/payouts";
-import { getTotalScoreColor, isCutStatus } from "@/lib/scoring";
+import { getSportConfig } from "@/lib/sports/registry";
 import type { LeaderboardEntry, Party } from "@/types";
 import { PickCell } from "./PickCell";
 
@@ -25,6 +25,7 @@ export function LeaderboardCards({
   unlockResult,
 }: LeaderboardCardsProps) {
   const payouts = party.buyIn > 0 ? calculatePayouts(party) : null;
+  const sport = getSportConfig(party.sportType);
 
   return (
     <>
@@ -72,7 +73,7 @@ export function LeaderboardCards({
               </div>
               <div className="shrink-0 text-right">
                 {showPicks ? (
-                  <span className={`text-lg font-bold ${getTotalScoreColor(entry.totalScore)}`}>{entry.displayTotal}</span>
+                  <span className={`text-lg font-bold ${sport.getTotalScoreColor(entry.totalScore)}`}>{entry.displayTotal}</span>
                 ) : (
                   <span className="text-lg text-gray-300">🔒</span>
                 )}
@@ -82,10 +83,10 @@ export function LeaderboardCards({
             {showPicks && (
               <div className="divide-y divide-gray-100">
                 {entry.picks.map((pick, pickIdx) => {
-                  const isCut = isCutStatus(pick.status);
+                  const isCut = sport.hasCutMechanic && pick.status !== "playing" && pick.status !== "finished";
                   return (
                     <div key={pickIdx} className={`px-3.5 py-2 ${isCut ? "bg-red-50" : ""}`}>
-                      <PickCell pick={pick} label={PICK_LABELS[pickIdx]} variant="card" />
+                      <PickCell pick={pick} label={PICK_LABELS[pickIdx]} variant="card" sportType={party.sportType} />
                     </div>
                   );
                 })}

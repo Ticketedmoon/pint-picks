@@ -1,4 +1,4 @@
-# 🏌️ BirdieBets - Future Improvement Ideas
+# 🍺 PintPicks - Future Improvement Ideas
 
 A brainstorm of features and technical improvements to consider for future development.
 
@@ -134,3 +134,4 @@ A brainstorm of features and technical improvements to consider for future devel
 ### Environment Variable Validation
 - Add startup validation for required env vars (Firebase config, Resend key, etc.)
 - Fail fast with clear error messages instead of runtime crashes
+

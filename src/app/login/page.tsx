@@ -10,7 +10,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/dashboard");
+      router.push("/sports");
     }
   }, [user, loading, router]);
 
@@ -18,12 +18,12 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 px-4 py-6 sm:py-8">
       <div className="mx-auto w-full max-w-md rounded-xl bg-white p-6 shadow-2xl sm:rounded-2xl sm:p-8">
         <div className="mb-8 text-center">
-          <div className="mb-4 text-5xl sm:text-6xl">⛳</div>
+          <div className="mb-4 text-5xl sm:text-6xl">🍺</div>
           <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">
-            BirdieBets
+            PintPicks
           </h1>
           <p className="text-sm leading-relaxed text-gray-600 sm:text-base">
-            Pick your golfers, track tournaments, compete with friends
+            Pick your players, track the action, compete with friends
           </p>
         </div>
 
@@ -56,8 +56,8 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-8 text-center text-xs leading-5 text-gray-400 sm:text-sm">
-          <p>Pick 6 golfers from tiered groups</p>
-          <p>Track live scores during PGA tournaments</p>
+          <p>Pick players or teams from tiered groups</p>
+          <p>Track live scores across golf and football</p>
           <p>Compete on the leaderboard with friends</p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import type { Party, Picks, PlayerScore } from "@/types";
 import { getAllPicksForParty } from "@/lib/firestore";
-import { fetchLeaderboard } from "@/lib/espn";
+import { fetchLeaderboard } from "@/lib/sports/golf/espn";
 
 export interface InvalidPick {
   uid: string;
@@ -18,8 +18,9 @@ const PICK_SLOTS = ["groupA", "groupB", "groupC", "groupD", "wildcard1", "wildca
 /**
  * Validate all party members' picks against the confirmed ESPN tournament field.
  * Uses name-based matching (normalised, case-insensitive) per ADR-014.
+ * This is golf-specific. Other sports skip validation via their sport adapter.
  */
-export async function validatePartyPicks(party: Party): Promise<ValidationResult> {
+export async function validatePartyPicksForGolf(party: Party): Promise<ValidationResult> {
   const [allPicks, leaderboardResult] = await Promise.all([
     getAllPicksForParty(party.id),
     fetchLeaderboard(party.tournamentId),
@@ -79,3 +80,6 @@ function normaliseName(name: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** Backward-compatible alias. Use validatePartyPicksForGolf for new code. */
+export const validatePartyPicks = validatePartyPicksForGolf;

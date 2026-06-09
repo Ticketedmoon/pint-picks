@@ -139,7 +139,7 @@ describe("buildMajorReminderEmail", () => {
     tournamentName: "The Masters",
     courseName: "Augusta National",
     startDate: "2026-04-09",
-    createPartyUrl: "https://birdiebets.com/party/create",
+    createPartyUrl: "https://pintpicks.com/party/create",
   };
 
   it("returns subject with tournament name", () => {
@@ -161,7 +161,7 @@ describe("buildMajorReminderEmail", () => {
 
   it("includes CTA link to create party", () => {
     const { html } = buildMajorReminderEmail(params);
-    expect(html).toContain("https://birdiebets.com/party/create");
+    expect(html).toContain("https://pintpicks.com/party/create");
     expect(html).toContain("Create a Party");
   });
 
@@ -177,9 +177,9 @@ describe("buildMajorReminderEmail", () => {
   it("includes unsubscribe link when URL is provided", () => {
     const { html } = buildMajorReminderEmail({
       ...params,
-      unsubscribeUrl: "https://birdiebets.com/unsubscribe?uid=abc123",
+      unsubscribeUrl: "https://pintpicks.com/unsubscribe?uid=abc123",
     });
-    expect(html).toContain("https://birdiebets.com/unsubscribe?uid=abc123");
+    expect(html).toContain("https://pintpicks.com/unsubscribe?uid=abc123");
     expect(html).toContain("Unsubscribe from emails");
   });
 

@@ -13,22 +13,35 @@ vi.mock("@/lib/firestore", () => ({
   getUsersInfo: vi.fn(),
 }));
 
-vi.mock("@/lib/espn", () => ({
-  fetchTournamentSnapshot: vi.fn(),
-}));
+// Mock fetchTournamentStatus and validatePicks as standalone fns we control
+const mockFetchTournamentStatus = vi.fn();
+const mockValidatePicks = vi.fn();
 
-vi.mock("@/lib/pickValidation", () => ({
-  validatePartyPicks: vi.fn(),
+vi.mock("@/lib/sports/registry", () => ({
+  getSportConfig: () => ({
+    id: "golf",
+    hasCutMechanic: true,
+    hasRoundScores: true,
+    hasThruProgress: true,
+    fetchTournamentStatus: mockFetchTournamentStatus,
+    validatePicks: mockValidatePicks,
+    fetchScores: vi.fn().mockResolvedValue({ scores: [], cutLine: null, cutRound: null }),
+    fetchRoundInfo: vi.fn().mockResolvedValue(null),
+    formatScore: (s: number) => String(s),
+    formatTotal: (s: number) => String(s),
+    getScoreColor: () => "",
+    getTotalScoreColor: () => "",
+    sortDirection: "asc",
+    pendingScoreDisplay: "-",
+  }),
 }));
 
 import { syncPartyStatus } from "@/lib/partySync";
 import * as firestore from "@/lib/firestore";
-import * as espn from "@/lib/espn";
-import * as pickValidation from "@/lib/pickValidation";
 
 const mocks = {
-  fetchTournamentSnapshot: vi.mocked(espn.fetchTournamentSnapshot),
-  validatePartyPicks: vi.mocked(pickValidation.validatePartyPicks),
+  fetchTournamentStatus: mockFetchTournamentStatus,
+  validatePicks: mockValidatePicks,
   updatePartyStatus: vi.mocked(firestore.updatePartyStatus),
   updatePartyInvalidPicks: vi.mocked(firestore.updatePartyInvalidPicks),
   clearPartyInvalidPicks: vi.mocked(firestore.clearPartyInvalidPicks),
@@ -62,7 +75,7 @@ describe("syncPartyStatus", () => {
 
   it("transitions locked → complete when ESPN says post", async () => {
     const party = makeParty({ status: "locked" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "post", firstTeeTime: null });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "post", lockTime: null });
 
     const result = await syncPartyStatus(party);
 
@@ -72,7 +85,7 @@ describe("syncPartyStatus", () => {
 
   it("does not transition locked party when ESPN says in", async () => {
     const party = makeParty({ status: "locked" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
 
     const result = await syncPartyStatus(party);
 
@@ -82,7 +95,7 @@ describe("syncPartyStatus", () => {
 
   it("does not transition locked party when ESPN says pre", async () => {
     const party = makeParty({ status: "locked" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "pre", firstTeeTime: null });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "pre", lockTime: null });
 
     const result = await syncPartyStatus(party);
 
@@ -94,8 +107,8 @@ describe("syncPartyStatus", () => {
 
   it("transitions picking → locked when ESPN says in and picks are valid", async () => {
     const party = makeParty({ status: "picking" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -107,8 +120,8 @@ describe("syncPartyStatus", () => {
 
   it("transitions picking → complete when ESPN says post and picks are valid", async () => {
     const party = makeParty({ status: "picking" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "post", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "post", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -120,21 +133,21 @@ describe("syncPartyStatus", () => {
 
   it("keeps picking when ESPN says pre and no tee time", async () => {
     const party = makeParty({ status: "picking" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "pre", firstTeeTime: null });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "pre", lockTime: null });
 
     const result = await syncPartyStatus(party);
 
     expect(mocks.updatePartyStatus).not.toHaveBeenCalled();
-    expect(mocks.validatePartyPicks).not.toHaveBeenCalled();
+    expect(mocks.validatePicks).not.toHaveBeenCalled();
     expect(result.status).toBe("picking");
   });
 
-  // --- picking stays picking (ESPN pre, future tee time) ---
+  // --- picking stays picking (adapter says pre) ---
 
-  it("keeps picking when ESPN says pre and tee time is in the future", async () => {
+  it("keeps picking when adapter says pre and lock time is in the future", async () => {
     const party = makeParty({ status: "picking" });
-    const futureTeeTime = new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(); // 2 hours from now
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "pre", firstTeeTime: futureTeeTime });
+    const futureLockTime = Date.now() + 1000 * 60 * 60 * 2; // 2 hours from now
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "pre", lockTime: futureLockTime });
 
     const result = await syncPartyStatus(party);
 
@@ -142,13 +155,13 @@ describe("syncPartyStatus", () => {
     expect(result.status).toBe("picking");
   });
 
-  // --- picking → locked by tee time ---
+  // --- picking → locked by tee time (adapter resolves to "in") ---
 
-  it("transitions picking → locked when ESPN pre but tee time has passed (valid picks)", async () => {
+  it("transitions picking → locked when adapter says in (tee time passed, valid picks)", async () => {
     const party = makeParty({ status: "picking" });
-    const pastTeeTime = new Date(Date.now() - 1000 * 60 * 30).toISOString(); // 30 min ago
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "pre", firstTeeTime: pastTeeTime });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    const pastLockTime = Date.now() - 1000 * 60 * 30; // 30 min ago
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: pastLockTime });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -156,11 +169,11 @@ describe("syncPartyStatus", () => {
     expect(result.status).toBe("locked");
   });
 
-  it("locks when tee time is exactly now", async () => {
+  it("locks when adapter reports status in (tee time exactly now)", async () => {
     const party = makeParty({ status: "picking" });
-    const nowTeeTime = new Date(Date.now()).toISOString();
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "pre", firstTeeTime: nowTeeTime });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    const nowLockTime = Date.now();
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: nowLockTime });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -173,8 +186,8 @@ describe("syncPartyStatus", () => {
   it("stays picking and records invalid picks when validation fails", async () => {
     const party = makeParty({ status: "picking" });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
     mocks.getUserEmail.mockResolvedValue("user@test.com");
     mocks.getUsersInfo.mockResolvedValue({ uid1: { displayName: "User 1" } });
 
@@ -188,8 +201,8 @@ describe("syncPartyStatus", () => {
   it("sends notification when invalid picks found and no recent notification", async () => {
     const party = makeParty({ status: "picking", lastInvalidNotifiedAt: undefined });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
     mocks.getUserEmail.mockResolvedValue("user@test.com");
     mocks.getUsersInfo.mockResolvedValue({ uid1: { displayName: "User 1" } });
 
@@ -207,8 +220,8 @@ describe("syncPartyStatus", () => {
     const recentNotification = new Date(Date.now() - 1000 * 60 * 30).toISOString(); // 30 min ago (within 1hr cooldown)
     const party = makeParty({ status: "picking", lastInvalidNotifiedAt: recentNotification });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
 
     await syncPartyStatus(party);
 
@@ -224,8 +237,8 @@ describe("syncPartyStatus", () => {
     const oldNotification = new Date(Date.now() - 1000 * 60 * 90).toISOString(); // 90 min ago (past 1hr cooldown)
     const party = makeParty({ status: "picking", lastInvalidNotifiedAt: oldNotification });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
     mocks.getUserEmail.mockResolvedValue("user@test.com");
     mocks.getUsersInfo.mockResolvedValue({ uid1: { displayName: "User 1" } });
 
@@ -241,8 +254,8 @@ describe("syncPartyStatus", () => {
       status: "picking",
       invalidPicks: [{ uid: "uid1", playerName: "Old Bad Pick", slot: "groupA" }],
     });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -252,8 +265,8 @@ describe("syncPartyStatus", () => {
 
   it("does not compact analytics when transitioning to locked (not complete)", async () => {
     const party = makeParty({ status: "picking" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: true, invalidPicks: [] });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: true, invalidPicks: [] });
 
     const result = await syncPartyStatus(party);
 
@@ -264,7 +277,7 @@ describe("syncPartyStatus", () => {
 
   it("returns party unchanged when already complete", async () => {
     const party = makeParty({ status: "complete" });
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "post", firstTeeTime: null });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "post", lockTime: null });
 
     const result = await syncPartyStatus(party);
 
@@ -277,8 +290,8 @@ describe("syncPartyStatus", () => {
   it("handles notification fetch failure gracefully", async () => {
     const party = makeParty({ status: "picking", lastInvalidNotifiedAt: undefined });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
     mocks.getUserEmail.mockResolvedValue("user@test.com");
     mocks.getUsersInfo.mockResolvedValue({ uid1: { displayName: "User 1" } });
     // Make the notification fetch throw
@@ -296,8 +309,8 @@ describe("syncPartyStatus", () => {
   it("skips notification when affected user has no email", async () => {
     const party = makeParty({ status: "picking", lastInvalidNotifiedAt: undefined });
     const invalidPicks = [{ uid: "uid1", playerName: "Tiger Woods", slot: "groupA" }];
-    mocks.fetchTournamentSnapshot.mockResolvedValue({ status: "in", firstTeeTime: null });
-    mocks.validatePartyPicks.mockResolvedValue({ valid: false, invalidPicks });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+    mocks.validatePicks.mockResolvedValue({ valid: false, invalidPicks });
     mocks.getUserEmail.mockResolvedValue(null); // no email
     mocks.getUsersInfo.mockResolvedValue({ uid1: { displayName: "User 1" } });
 

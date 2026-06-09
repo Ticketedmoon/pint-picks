@@ -8,7 +8,17 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
-      exclude: ["src/lib/firebase.ts", "src/lib/firestore.ts", "src/lib/resend.ts", "src/lib/usePageView.ts"],
+      exclude: [
+        "src/lib/firebase.ts",
+        "src/lib/firestore.ts",
+        "src/lib/resend.ts",
+        "src/lib/usePageView.ts",
+        "src/lib/sports/types.ts",
+        "src/lib/sports/index.ts",
+        "src/lib/sports/golf/index.ts",
+        "src/lib/sports/football/index.ts",
+        "src/lib/sports/football/types.ts",
+      ],
       thresholds: {
         lines: 90,
         branches: 90,

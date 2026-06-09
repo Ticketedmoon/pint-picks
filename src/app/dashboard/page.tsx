@@ -7,7 +7,8 @@ import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardSkeleton } from "@/components/Skeletons";
 import Link from "next/link";
-import type { Party } from "@/types";
+import { useSearchParams } from "next/navigation";
+import type { Party, SportType } from "@/types";
 
 function statusBadge(status: Party["status"]) {
   const styles = {
@@ -114,17 +115,24 @@ function PartyCard({
 
 function DashboardContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const sport = (searchParams.get("sport") as SportType) || "golf";
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const sportLabel = sport === "golf" ? "Golf" : "Football";
+  const sportEmoji = sport === "golf" ? "⛳" : "⚽";
 
   useEffect(() => {
     if (!user) return;
     getPartiesForUser(user.uid).then((p) => {
-      p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setParties(p);
+      // Filter by sport type (existing parties without sportType are golf)
+      const filtered = p.filter((party) => (party.sportType || "golf") === sport);
+      filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setParties(filtered);
       setLoading(false);
     });
-  }, [user]);
+  }, [user, sport]);
 
   const handleDelete = async (partyId: string) => {
     try {
@@ -146,14 +154,18 @@ function DashboardContent() {
     <div className="w-full px-6 py-8 sm:px-12 sm:py-12 lg:px-20">
       {/* Welcome header */}
       <div className="mb-8 sm:mb-12">
-        <p className="text-sm font-medium text-green-700 mb-1">Welcome back{user?.displayName ? `, ${user.displayName.split(" ")[0]}` : ""}</p>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800 sm:text-3xl">My Parties</h1>
+        <div className="flex items-center gap-2 mb-1">
+          <Link href="/sports" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">← Sports</Link>
+          <span className="text-gray-300">·</span>
+          <p className="text-sm font-medium text-green-700">Welcome back{user?.displayName ? `, ${user.displayName.split(" ")[0]}` : ""}</p>
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-800 sm:text-3xl">{sportEmoji} {sportLabel} Parties</h1>
       </div>
 
       {/* Action buttons */}
       <div className="mb-10 flex flex-col gap-3 sm:flex-row">
         <Link
-          href="/party/create"
+          href={`/party/create?sport=${sport}`}
           className="w-full rounded-lg bg-green-700 px-5 py-2.5 text-center font-medium text-white shadow-sm transition-colors hover:bg-green-600 sm:w-auto"
         >
           + Create Party
@@ -168,13 +180,13 @@ function DashboardContent() {
 
       {parties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-16 text-center sm:py-20">
-          <div className="text-6xl mb-5">🏌️</div>
+          <div className="text-6xl mb-5">🍺</div>
           <h2 className="text-xl font-semibold text-gray-700 mb-2">No parties yet</h2>
           <p className="text-gray-500 mb-8 max-w-sm mx-auto leading-relaxed">
-            Create a party to start picking golfers, or join one with an invite code.
+            Create a party to start picking your players or teams, or join one with an invite code.
           </p>
           <Link
-            href="/party/create"
+            href={`/party/create?sport=${sport}`}
             className="inline-block bg-green-700 hover:bg-green-600 text-white font-medium py-2.5 px-6 rounded-lg transition-colors shadow-sm"
           >
             Create Your First Party

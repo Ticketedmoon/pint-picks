@@ -17,10 +17,10 @@ The app needs to be hosted on a platform that is:
 ## Decision
 Host on **Vercel** (free Hobby tier).
 
-- **URL**: [birdie-bets.vercel.app](https://birdie-bets.vercel.app/)
+- **URL**: [pintpicks.vercel.app](https://pintpicks.vercel.app/)
 - **Auto-deploy**: Every push to `main` triggers a production deploy
 - **Environment variables**: Configured in Vercel dashboard (Firebase config, Resend API key)
-- **Firebase authorised domain**: `birdie-bets.vercel.app` added to Firebase Auth settings
+- **Firebase authorised domain**: `pintpicks.vercel.app` added to Firebase Auth settings
 
 ### Why Vercel
 - Built by the creators of Next.js - first-class support
@@ -56,3 +56,4 @@ All limits are well within the needs of this app.
 - **DigitalOcean App Platform**: More control but requires container management, not free
 - **Netlify**: Good but Next.js support is less mature than Vercel
 - **Self-hosted on a VPS**: Maximum control but significant ops burden for a hobby project
+

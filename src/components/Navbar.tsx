@@ -10,9 +10,9 @@ export function Navbar() {
     <nav className="bg-green-800 text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between sm:h-16">
-          <Link href="/dashboard" className="flex items-center gap-2 text-lg font-extrabold tracking-tight sm:text-xl" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
-            <span>⛳</span>
-            <span>BirdieBets</span>
+          <Link href="/sports" className="flex items-center gap-2 text-lg font-extrabold tracking-tight sm:text-xl" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
+            <span>🍺</span>
+            <span>PintPicks</span>
           </Link>
           {user && (
             <div className="flex items-center gap-2 sm:gap-5">

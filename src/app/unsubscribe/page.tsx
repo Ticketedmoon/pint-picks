@@ -43,7 +43,7 @@ function UnsubscribeContent() {
           <>
             <h1 className="mt-3 text-lg font-bold text-gray-900">Unsubscribed</h1>
             <p className="mt-2 text-sm text-gray-500">
-              You won't receive any more marketing emails from BirdieBets.
+              You won't receive any more marketing emails from PintPicks.
               You'll still get emails for party invites and pick unlocks.
             </p>
           </>
@@ -51,7 +51,7 @@ function UnsubscribeContent() {
           <>
             <h1 className="mt-3 text-lg font-bold text-gray-900">Unsubscribe from emails</h1>
             <p className="mt-2 text-sm text-gray-500">
-              Click below to stop receiving tournament reminder emails from BirdieBets.
+              Click below to stop receiving tournament reminder emails from PintPicks.
               You'll still get essential emails (party invites, pick unlocks).
             </p>
             <button

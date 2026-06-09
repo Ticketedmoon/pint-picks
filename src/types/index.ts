@@ -1,4 +1,6 @@
-// TypeScript types for the Golf Tourney Player Bet Tracker
+// TypeScript types for the PintPicks multi-sport tracker
+
+export type SportType = "golf" | "football";
 
 export interface Player {
   id: string;
@@ -14,9 +16,10 @@ export interface Player {
 export interface PlayerScore {
   playerId: string;
   playerName: string;
+  /** Primary numeric score. Golf: relative to par. Football: total match points. */
   scoreToPar: number;
   displayScore: string;
-  status: "playing" | "finished" | "cut" | "wd" | "dq";
+  status: "playing" | "finished" | "cut" | "wd" | "dq" | "active" | "pre" | "eliminated";
   position?: string;
   roundScores?: string[];
   headshot?: string;
@@ -73,6 +76,12 @@ export interface Party {
   currency: string;
   secondPlacePayout: boolean;
   thirdPlacePayout: boolean;
+  /** Custom payout split percentages. If not set, defaults are used (65/35 or 55/30/15). */
+  payoutSplit?: { first: number; second: number; third: number };
+  /** Sport type for this party. Defaults to "golf" for backward compatibility. */
+  sportType?: SportType;
+  /** ESPN league slug for football parties (e.g. "fifa.world", "eng.1") */
+  leagueSlug?: string;
   customGroups?: {
     A: { id: string; displayName: string }[];
     B: { id: string; displayName: string }[];
@@ -102,6 +111,10 @@ export interface Tournament {
   purse?: string;
   status: "pre" | "in" | "post";
   isMajor: boolean;
+  /** Sport type. Defaults to "golf" for backward compatibility. */
+  sportType?: SportType;
+  /** ESPN league slug for football tournaments */
+  leagueSlug?: string;
 }
 
 export interface LeaderboardEntry {
@@ -114,7 +127,7 @@ export interface LeaderboardEntry {
     playerName: string;
     scoreToPar: number;
     displayScore: string;
-    status: "playing" | "finished" | "cut" | "wd" | "dq";
+    status: "playing" | "finished" | "cut" | "wd" | "dq" | "active" | "pre" | "eliminated";
     headshot?: string;
     displayThru?: string;
     /** Shown when the score was capped at cut line (actual score before capping) */

@@ -1,4 +1,4 @@
-# BirdieBets Email Template Skill
+# PintPicks Email Template Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: create email, email template, notification email, send email, build ema
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Email service:** Resend (`src/lib/resend.ts`)
 - **Templates:** `src/lib/emailTemplates.ts`
 - **Tests:** `src//__tests__/emailTemplates.test.ts`
@@ -61,3 +61,4 @@ export function buildMyEmail(params: {
    - HTML contains CTA link
    - XSS test: HTML-escapes injected tags
 4. Run `npm run test:coverage` - emailTemplates must be 100%
+

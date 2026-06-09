@@ -1,69 +1,57 @@
 import { getParty, updatePartyStatus, updatePartyInvalidPicks, clearPartyInvalidPicks, updatePartyLastNotified, getUserEmail, getUsersInfo } from "@/lib/firestore";
-import { fetchTournamentSnapshot } from "@/lib/espn";
-import { validatePartyPicks } from "@/lib/pickValidation";
+import { getSportConfig } from "@/lib/sports/registry";
 import type { Party } from "@/types";
 
 const NOTIFICATION_COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
 
 /**
- * Check the live tournament status from ESPN and auto-update the party
- * status in Firestore if needed.
+ * Check the live tournament status and auto-update the party
+ * status in Firestore if needed. Uses the sport adapter for
+ * sport-specific status checking and pick validation.
  *
  * Transitions:
- *   picking → locked   (when tournament starts: ESPN status "in") - only if all picks are valid
- *   picking → complete (when tournament ends: ESPN status "post") - only if all picks are valid
- *   locked  → complete (when tournament ends: ESPN status "post")
- *
- * If picks are invalid when trying to lock, the party stays in "picking"
- * and affected members are emailed to update their picks.
+ *   picking → locked   (when tournament starts)
+ *   picking → complete (when tournament ends, if sport supports it)
+ *   locked  → complete (when tournament ends)
  *
  * Returns the updated party object.
  */
 export async function syncPartyStatus(party: Party): Promise<Party> {
-  const { status: espnStatus, firstTeeTime } = await fetchTournamentSnapshot(party.tournamentId);
+  const sport = getSportConfig(party.sportType);
+  const { status: tournamentStatus } = await sport.fetchTournamentStatus(party);
 
   // locked → complete transition (no validation needed, picks already locked)
-  if (party.status === "locked" && espnStatus === "post") {
+  if (party.status === "locked" && tournamentStatus === "post") {
     await updatePartyStatus(party.id, "complete");
     return { ...party, status: "complete" };
   }
 
   // picking → locked/complete transition
-  // Triggers when: ESPN says "in" or "post", OR 1 hour before first tee time
-  if (party.status === "picking") {
-    const shouldLockByTeeTime =
-      espnStatus === "pre" &&
-      firstTeeTime &&
-      Date.now() >= Date.parse(firstTeeTime);
+  if (party.status === "picking" && (tournamentStatus === "in" || tournamentStatus === "post")) {
+    const validation = await sport.validatePicks(party);
 
-    const shouldLockByEspn = espnStatus === "in" || espnStatus === "post";
-
-    if (shouldLockByEspn || shouldLockByTeeTime) {
-      const validation = await validatePartyPicks(party);
-
-      if (validation.valid) {
-        if (party.invalidPicks && party.invalidPicks.length > 0) {
-          await clearPartyInvalidPicks(party.id);
-        }
-        const newStatus = espnStatus === "post" ? "complete" : "locked";
-        await updatePartyStatus(party.id, newStatus);
-        return { ...party, status: newStatus, invalidPicks: [] };
+    if (validation.valid) {
+      if (party.invalidPicks && party.invalidPicks.length > 0) {
+        await clearPartyInvalidPicks(party.id);
       }
-
-      // Invalid picks found - block the lock
-      await updatePartyInvalidPicks(party.id, validation.invalidPicks);
-
-      const shouldNotify =
-        !party.lastInvalidNotifiedAt ||
-        Date.now() - new Date(party.lastInvalidNotifiedAt).getTime() > NOTIFICATION_COOLDOWN_MS;
-
-      if (shouldNotify) {
-        await notifyInvalidPickMembers(party, validation.invalidPicks);
-        await updatePartyLastNotified(party.id);
-      }
-
-      return { ...party, invalidPicks: validation.invalidPicks };
+      const newStatus = tournamentStatus === "post" ? "complete" : "locked";
+      await updatePartyStatus(party.id, newStatus);
+      return { ...party, status: newStatus, invalidPicks: [] };
     }
+
+    // Invalid picks found (golf-specific: field validation)
+    await updatePartyInvalidPicks(party.id, validation.invalidPicks);
+
+    const shouldNotify =
+      !party.lastInvalidNotifiedAt ||
+      Date.now() - new Date(party.lastInvalidNotifiedAt).getTime() > NOTIFICATION_COOLDOWN_MS;
+
+    if (shouldNotify) {
+      await notifyInvalidPickMembers(party, validation.invalidPicks);
+      await updatePartyLastNotified(party.id);
+    }
+
+    return { ...party, invalidPicks: validation.invalidPicks };
   }
 
   return party;

@@ -53,6 +53,8 @@ Reusable skills are in `.github/skills/`:
 - `birdiebets-testing` - test framework, conventions, file map
 - `birdiebets-api-route` - API route template with logging
 - `birdiebets-email-template` - email builder pattern
-- `birdiebets-scoring` - scoring rules and functions
+- `birdiebets-scoring` - scoring rules and functions (golf + football)
 - `birdiebets-ui-component` - UI patterns and conventions
 - `birdiebets-adr` - ADR template and workflow
+
+> Note: Skill directory names still use the `birdiebets-` prefix for backward compatibility.

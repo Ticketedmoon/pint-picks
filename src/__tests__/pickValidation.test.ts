@@ -7,13 +7,13 @@ vi.mock("@/lib/firestore", () => ({
   getAllPicksForParty: vi.fn(),
 }));
 
-vi.mock("@/lib/espn", () => ({
+vi.mock("@/lib/sports/golf/espn", () => ({
   fetchLeaderboard: vi.fn(),
 }));
 
-import { validatePartyPicks } from "@/lib/pickValidation";
+import { validatePartyPicks } from "@/lib/sports/golf/pickValidation";
 import * as firestore from "@/lib/firestore";
-import * as espn from "@/lib/espn";
+import * as espn from "@/lib/sports/golf/espn";
 
 const mocks = {
   getAllPicksForParty: vi.mocked(firestore.getAllPicksForParty),

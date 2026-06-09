@@ -1,4 +1,4 @@
-# BirdieBets API Route Skill
+# PintPicks API Route Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: create API route, add endpoint, server route, API handler, proxy endpoi
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Stack:** Next.js 16 App Router, TypeScript, Firebase Firestore
 - **API routes:** `src/app/api/`
 - **Logger:** `src/lib/logger.ts` - structured JSON logger
@@ -63,3 +63,4 @@ export async function POST(request: NextRequest) {
 6. For cached routes: include `cache: "hit" | "miss"` in logs
 7. For ESPN proxy routes: add `Cache-Control: public, s-maxage=60, stale-while-revalidate=30`
 8. Run `npm run test:coverage` after changes - 90% minimum on `src/lib/`
+

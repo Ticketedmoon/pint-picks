@@ -1,4 +1,4 @@
-# BirdieBets ADR Skill
+# PintPicks ADR Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: create ADR, document decision, add architecture decision record, docume
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Stack:** Next.js 16, TypeScript, Firebase, Tailwind CSS
 - **ADR location:** `docs/adr/`
 - **Numbering:** Sequential, zero-padded (e.g. `028-firestore-security-rules.md`)
@@ -46,3 +46,4 @@ Accepted
 3. Follow the template above
 4. Reference related ADRs with "Extends ADR-XXX" or "Supersedes ADR-XXX"
 5. Commit with message: `Add ADR-{NNN} for {topic}`
+

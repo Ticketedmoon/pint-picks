@@ -73,7 +73,9 @@ describe("buildLeaderboardEntries", () => {
     const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores);
 
     expect(entries).toHaveLength(2);
-    expect(entries[0].picks).toEqual([]);
+    // Always produces 6 "Not picked" entries even when user has no picks document
+    expect(entries[0].picks).toHaveLength(6);
+    expect(entries[0].picks.every((p) => p.playerName === "Not picked")).toBe(true);
     expect(entries[0].totalScore).toBe(0);
   });
 

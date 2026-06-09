@@ -19,32 +19,14 @@ import {
   EMAIL_BANNER_MS,
   INVITE_RESULT_MS,
 } from "@/lib/constants";
-import { fetchFirstTeeTime, formatScoreToPar } from "@/lib/espn";
+import { formatScoreToPar } from "@/lib/sports/golf/espn";
 import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty } from "@/lib/firestore";
 import { buildLeaderboardEntries } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
+import { getSportConfig } from "@/lib/sports/registry";
 import { usePageView } from "@/lib/usePageView";
-import type { LeaderboardEntry, LeaderboardResult, Party, PlayerScore } from "@/types";
-
-/** Fetch leaderboard via server-side API route (shared edge cache). */
-async function fetchLeaderboardViaServer(eventId: string): Promise<LeaderboardResult> {
-  const res = await fetch(`/api/espn/leaderboard?eventId=${eventId}`);
-  if (!res.ok) throw new Error(`Leaderboard API error: ${res.status}`);
-  return res.json();
-}
-
-/** Fetch current round via server-side API route (shared edge cache). */
-async function fetchCurrentRoundViaServer(eventId: string): Promise<{
-  currentRound: number;
-  displayRound: number;
-  totalRounds: number;
-  nextRoundTeeTime: string | null;
-} | null> {
-  const res = await fetch(`/api/espn/round?eventId=${eventId}`);
-  if (!res.ok) return null;
-  return res.json();
-}
+import type { LeaderboardEntry, Party, PlayerScore } from "@/types";
 
 function PartyContent() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -82,6 +64,7 @@ function PartyContent() {
   const [cutRound, setCutRound] = useState<number | null>(null);
   const [tournamentScores, setTournamentScores] = useState<PlayerScore[]>([]);
   const [showTournamentLeaderboard, setShowTournamentLeaderboard] = useState(false);
+  const [showPickPrompt, setShowPickPrompt] = useState(false);
 
   // Show email send results from create flow
   useEffect(() => {
@@ -99,16 +82,17 @@ function PartyContent() {
   }, [searchParams]);
 
   const buildLeaderboard = async (partyData: Party) => {
-    const [allPicks, usersInfo, leaderboardResult] = await Promise.all([
+    const sport = getSportConfig(partyData.sportType);
+    const [allPicks, usersInfo] = await Promise.all([
       getAllPicksForParty(partyData.id),
       getUsersInfo(partyData.memberUids),
-      fetchLeaderboardViaServer(partyData.tournamentId).catch(() => ({ scores: [] as PlayerScore[], cutLine: null, cutRound: null, coursePar: null })),
     ]);
 
-    setCutLine(leaderboardResult.cutLine);
-    setCutRound(leaderboardResult.cutRound);
-    setTournamentScores(leaderboardResult.scores);
-    return buildLeaderboardEntries(partyData, allPicks, usersInfo, leaderboardResult.scores, leaderboardResult.cutLine);
+    const { scores, cutLine: cl, cutRound: cr } = await sport.fetchScores(partyData);
+    setCutLine(cl);
+    setCutRound(cr);
+    setTournamentScores(scores);
+    return buildLeaderboardEntries(partyData, allPicks, usersInfo, scores, cl);
   };
 
   useEffect(() => {
@@ -121,15 +105,15 @@ function PartyContent() {
           setLoading(false);
           return;
         }
-        // Auto-sync party status with live ESPN tournament status
+        // Auto-sync party status with live tournament status
         const synced = await syncPartyStatus(p);
         setParty(synced);
-        // Fetch leaderboard and current round in parallel
-        const shouldFetchRound = synced.status === "locked" || synced.status === "complete";
+        const sport = getSportConfig(synced.sportType);
+        const shouldFetchRound = sport.hasRoundScores && (synced.status === "locked" || synced.status === "complete");
         const [lb] = await Promise.all([
           buildLeaderboard(synced),
           shouldFetchRound
-            ? fetchCurrentRoundViaServer(synced.tournamentId).then(setCurrentRound).catch(() => {})
+            ? sport.fetchRoundInfo(synced).then(setCurrentRound).catch(() => {})
             : Promise.resolve(),
         ]);
         setLeaderboard(lb);
@@ -150,11 +134,12 @@ function PartyContent() {
       // Re-sync party status on every refresh
       const synced = await syncPartyStatus(party);
       setParty(synced);
-      const shouldFetchRound = synced.status === "locked" || synced.status === "complete";
+      const sport = getSportConfig(synced.sportType);
+      const shouldFetchRound = sport.hasRoundScores && (synced.status === "locked" || synced.status === "complete");
       const [lb] = await Promise.all([
         buildLeaderboard(synced),
         shouldFetchRound
-          ? fetchCurrentRoundViaServer(synced.tournamentId).then(setCurrentRound).catch(() => {})
+          ? sport.fetchRoundInfo(synced).then(setCurrentRound).catch(() => {})
           : Promise.resolve(),
       ]);
       setLeaderboard(lb);
@@ -191,13 +176,10 @@ function PartyContent() {
     let cancelled = false;
 
     const init = async () => {
-      const teeTime = await fetchFirstTeeTime(party.tournamentId);
+      const sport = getSportConfig(party.sportType);
+      const { lockTime: lt } = await sport.fetchTournamentStatus(party);
       if (cancelled) return;
-
-      const teeOff = teeTime
-        ? Date.parse(teeTime)
-        : new Date(party.tournamentStartDate).getTime();
-      setLockTime(teeOff);
+      setLockTime(lt || new Date(party.tournamentStartDate).getTime());
     };
 
     init();
@@ -288,7 +270,7 @@ function PartyContent() {
     setLeaving(true);
     try {
       await leaveParty(partyId, user.uid);
-      router.push("/dashboard");
+      router.push(party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard");
     } catch {
       setError("Failed to leave party");
       setLeaving(false);
@@ -300,12 +282,40 @@ function PartyContent() {
     setDeleting(true);
     try {
       await deleteParty(partyId);
-      router.push("/dashboard");
+      router.push(party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard");
     } catch {
       setError("Failed to delete party");
       setDeleting(false);
     }
   };
+
+  // Show "make your picks" prompt on first visit when picks aren't done
+  const userEntry = leaderboard.find((e) => e.uid === user?.uid);
+  const userHasPicksForPrompt = userEntry?.picks.some((p) => p.playerId);
+  useEffect(() => {
+    if (!party || leaderboard.length === 0) return; // Wait for data to load
+    if (party.status === "picking" && !userHasPicksForPrompt) {
+      const key = `pickPromptDismissed_${party.id}`;
+      if (!sessionStorage.getItem(key)) {
+        setShowPickPrompt(true);
+      }
+    } else {
+      setShowPickPrompt(false);
+    }
+  }, [party?.id, party?.status, userHasPicksForPrompt, leaderboard.length]);
+
+  // Escape key closes pick prompt modal
+  useEffect(() => {
+    if (!showPickPrompt) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowPickPrompt(false);
+        if (party?.id) sessionStorage.setItem(`pickPromptDismissed_${party.id}`, "1");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [showPickPrompt, party?.id]);
 
   if (loading) {
     return <PartyPageSkeleton />;
@@ -319,11 +329,18 @@ function PartyContent() {
     );
   }
 
-  const userHasPicks = leaderboard.find((e) => e.uid === user?.uid)?.picks.some(
-    (p) => p.playerId
-  );
+  const userHasPicks = userHasPicksForPrompt;
   const isLocked = party.status !== "picking";
-  const picksRevealed = isLocked; // picks only visible once tournament starts
+  const picksRevealed = isLocked;
+
+  const dismissPickPrompt = () => {
+    setShowPickPrompt(false);
+    if (party?.id) {
+      sessionStorage.setItem(`pickPromptDismissed_${party.id}`, "1");
+    }
+  };
+
+  const sport = getSportConfig(party.sportType);
 
   const handleSendUnlock = async (targetUid: string) => {
     if (!user || !party) return;
@@ -349,9 +366,48 @@ function PartyContent() {
 
   return (
     <div className="w-full px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
+      {/* Pick prompt modal */}
+      {showPickPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-label="Make your picks">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+            <div className="text-4xl mb-3">{sport.emoji}</div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Time to make your picks!</h2>
+            <p className="text-sm text-gray-500 mb-1">
+              {party.tournamentName} is coming up.
+            </p>
+            <p className="text-sm text-gray-500 mb-5">
+              Choose your {sport.entityLabelPlural.toLowerCase()} before picks lock{lockTime ? ` on ${new Date(lockTime).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}.
+            </p>
+            <Link
+              href={`/party/${party.id}/picks`}
+              onClick={dismissPickPrompt}
+              className="block w-full rounded-lg bg-green-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+            >
+              {sport.pickActionLabel}
+            </Link>
+            <button
+              type="button"
+              onClick={dismissPickPrompt}
+              className="mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          <Link
+            href={party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard"}
+            className="mb-2 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+              <path fillRule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z" clipRule="evenodd" />
+            </svg>
+            Back to dashboard
+          </Link>
           <h1 className="break-words text-2xl font-bold text-gray-900 sm:text-3xl">{party.name}</h1>
           <p className="mt-1 break-words text-sm text-gray-500 sm:text-base">
             {party.tournamentName} • {party.memberUids.length} member
@@ -359,12 +415,12 @@ function PartyContent() {
           </p>
           {tournamentCountdown && party.status === "picking" && (
             <p className="mt-1 text-xs sm:text-sm font-medium text-amber-700">
-              ⛳ First tee-off in {tournamentCountdown} - picks lock at tee-off
+              {sport.emoji} {sport.startEventLabel} in {tournamentCountdown} - picks lock at {sport.startEventLabel.toLowerCase()}
             </p>
           )}
           {!tournamentCountdown && party.status === "picking" && (
             <p className="mt-1 text-xs sm:text-sm font-medium text-blue-700">
-              🔒 First tee-off is imminent - picks are about to lock
+              🔒 {sport.startEventLabel} is imminent - picks are about to lock
             </p>
           )}
           {party.buyIn > 0 && (() => {
@@ -406,7 +462,7 @@ function PartyContent() {
               href={`/party/${party.id}/picks`}
               className="w-full rounded-lg bg-green-700 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-green-600 sm:w-auto"
             >
-              🏌️ Pick Players
+              {sport.emoji} {sport.pickActionLabel}
             </Link>
           )}
           {!isLocked && userHasPicks && (
@@ -427,7 +483,7 @@ function PartyContent() {
         </div>
       </div>
 
-      {currentRound && (party.status === "locked" || party.status === "complete") && (
+      {currentRound && sport.hasRoundScores && (party.status === "locked" || party.status === "complete") && (
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-5 py-2 text-sm sm:text-base font-semibold text-green-800 shadow-sm">
             ⛳ Round {currentRound.displayRound} of {currentRound.totalRounds}
@@ -673,15 +729,17 @@ function PartyContent() {
 
       {/* Legend */}
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500 sm:gap-x-6">
-        <div className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 bg-red-100 border border-red-400 rounded"></span>
-          Missed Cut (+1 penalty)
-        </div>
+        {sport.hasCutMechanic && (
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 bg-red-100 border border-red-400 rounded"></span>
+            Missed Cut (+1 penalty)
+          </div>
+        )}
         <div className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 bg-green-50 border border-green-300 rounded"></span>
           Your row
         </div>
-        <div>Lowest total score wins 🏆</div>
+        <div>{sport.winConditionLabel}</div>
       </div>
 
       {/* Leave / Delete Party actions */}

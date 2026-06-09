@@ -1,8 +1,8 @@
-# Authentication Architecture - BirdieBets
+# Authentication Architecture - PintPicks
 
 ## Overview
 
-BirdieBets uses **Firebase Authentication** with **Google Sign-In** as the sole auth provider. Authentication is handled entirely on the client side using the Firebase JS SDK. There is no server-side session management - the Firebase SDK manages tokens and persistence automatically via browser storage.
+PintPicks uses **Firebase Authentication** with **Google Sign-In** as the sole auth provider. Authentication is handled entirely on the client side using the Firebase JS SDK. There is no server-side session management - the Firebase SDK manages tokens and persistence automatically via browser storage.
 
 ---
 
@@ -256,3 +256,4 @@ Firebase Auth automatically persists the user session in browser storage (Indexe
 - No explicit session token management is needed
 - Sign-out explicitly clears the persisted session via `firebaseSignOut()`
 - Token refresh is handled automatically by the Firebase SDK
+

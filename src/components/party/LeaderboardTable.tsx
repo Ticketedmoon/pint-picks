@@ -1,7 +1,7 @@
 import type { User } from "firebase/auth";
 import { PICK_LABELS } from "@/lib/constants";
 import { calculatePayouts } from "@/lib/payouts";
-import { getTotalScoreColor, isCutStatus } from "@/lib/scoring";
+import { getSportConfig } from "@/lib/sports/registry";
 import type { LeaderboardEntry, Party } from "@/types";
 import { PickCell } from "./PickCell";
 
@@ -27,6 +27,8 @@ export function LeaderboardTable({
   mobileView,
 }: LeaderboardTableProps) {
   const payouts = party.buyIn > 0 ? calculatePayouts(party) : null;
+  const sport = getSportConfig(party.sportType);
+  const groupPrefix = sport.groupLabel;
 
   return (
     <div className={`relative -mx-2 rounded-xl border border-gray-200 sm:mx-0 ${mobileView === "table" ? "sm:block" : "hidden sm:block"}`}>
@@ -37,21 +39,20 @@ export function LeaderboardTable({
         <table className="w-full min-w-[520px] text-sm sm:min-w-[880px]">
           <thead>
             <tr className="bg-green-800 text-white">
-              {/* Sticky rank + player header (single cell avoids jitter) */}
               <th className="sticky left-0 z-10 bg-green-800 whitespace-nowrap px-2 py-2 text-left text-xs font-medium shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] sm:px-4 sm:py-3 sm:text-sm sm:shadow-none">
                 Player
               </th>
               <th className="whitespace-nowrap px-1.5 py-2 text-center text-xs font-medium sm:px-4 sm:py-3 sm:text-sm">
-                <span className="sm:hidden">A</span><span className="hidden sm:inline">Group A</span>
+                <span className="sm:hidden">A</span><span className="hidden sm:inline">{groupPrefix} A</span>
               </th>
               <th className="whitespace-nowrap px-1.5 py-2 text-center text-xs font-medium sm:px-4 sm:py-3 sm:text-sm">
-                <span className="sm:hidden">B</span><span className="hidden sm:inline">Group B</span>
+                <span className="sm:hidden">B</span><span className="hidden sm:inline">{groupPrefix} B</span>
               </th>
               <th className="whitespace-nowrap px-1.5 py-2 text-center text-xs font-medium sm:px-4 sm:py-3 sm:text-sm">
-                <span className="sm:hidden">C</span><span className="hidden sm:inline">Group C</span>
+                <span className="sm:hidden">C</span><span className="hidden sm:inline">{groupPrefix} C</span>
               </th>
               <th className="whitespace-nowrap px-1.5 py-2 text-center text-xs font-medium sm:px-4 sm:py-3 sm:text-sm">
-                <span className="sm:hidden">D</span><span className="hidden sm:inline">Group D</span>
+                <span className="sm:hidden">D</span><span className="hidden sm:inline">{groupPrefix} D</span>
               </th>
               <th className="whitespace-nowrap px-1.5 py-2 text-center text-xs font-medium sm:px-4 sm:py-3 sm:text-sm">
                 <span className="sm:hidden">W1</span><span className="hidden sm:inline">Wild 1</span>
@@ -74,7 +75,6 @@ export function LeaderboardTable({
                   key={entry.uid}
                   className={`border-b border-gray-100 ${rowBg}`}
                 >
-                  {/* Sticky rank + player cell */}
                   <td className={`sticky left-0 z-10 ${rowBg} px-2 py-2 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)] sm:px-4 sm:py-3 sm:shadow-none`}>
                     <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                       <span className="w-5 shrink-0 text-sm font-bold text-gray-500 sm:w-6">
@@ -140,21 +140,21 @@ export function LeaderboardTable({
                       );
                     }
 
-                    const isCut = isCutStatus(pick.status);
-                    const isCapped = !!pick.actualDisplayScore;
+                    const isCut = sport.hasCutMechanic && pick.status !== "playing" && pick.status !== "finished";
+                    const isCapped = sport.hasCutMechanic && !!pick.actualDisplayScore;
                     return (
                       <td
                         key={pickIdx}
                         className={`px-1.5 py-2 text-center sm:px-4 sm:py-3 ${isCut ? "border-l-2 border-red-400 bg-red-100" : isCapped ? "border-l-2 border-amber-400 bg-amber-50" : ""}`}
                         title={isCut ? `${pick.playerName} - Missed Cut (scored at cut line + 1)` : isCapped ? `${pick.playerName} - Score capped at cut line (actual: ${pick.actualDisplayScore})` : pick.playerName}
                       >
-                        <PickCell pick={pick} label={PICK_LABELS[pickIdx]} variant="table" />
+                        <PickCell pick={pick} label={PICK_LABELS[pickIdx]} variant="table" sportType={party.sportType} />
                       </td>
                     );
                   })}
                   <td className="px-1.5 py-2 text-center sm:px-4 sm:py-3">
                     {showPicks ? (
-                      <span className={`text-sm font-bold sm:text-lg ${getTotalScoreColor(entry.totalScore)}`}>
+                      <span className={`text-sm font-bold sm:text-lg ${sport.getTotalScoreColor(entry.totalScore)}`}>
                         {entry.displayTotal}
                       </span>
                     ) : (

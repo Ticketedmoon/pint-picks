@@ -4,7 +4,7 @@ import {
   GROUP_LABELS,
   getGroupedPlayerIds,
   isInGroups,
-} from "@/lib/playerGroups";
+} from "@/lib/sports/golf/playerGroups";
 
 describe("PLAYER_GROUPS", () => {
   it("has exactly 4 groups (A–D)", () => {

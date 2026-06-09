@@ -1,4 +1,4 @@
-# BirdieBets Scoring Skill
+# PintPicks Scoring Skill
 
 ## When to Use
 
@@ -6,7 +6,7 @@ USE FOR: scoring change, cut line, penalty, score calculation, effective score, 
 
 ## Repository Context
 
-- **App:** BirdieBets - golf tournament betting tracker
+- **App:** PintPicks - multi-sport tournament pool tracker
 - **Scoring logic:** `src/lib/espn.ts` (`calculateEffectiveScore`)
 - **Scoring display:** `src/lib/scoring.ts` (colors, status checks)
 - **Leaderboard:** `src/lib/leaderboard.ts` (`buildLeaderboardEntries`)
@@ -48,3 +48,4 @@ buildLeaderboardEntries(party, allPicks, usersInfo, scores, cutLine?)
 4. Update tests in `src/__tests__/espn.test.ts` and `src/__tests__/leaderboard.test.ts`
 5. Run `npm run test:coverage` - 90% minimum, 100% preferred on `src/lib/`
 6. Create ADR in `docs/adr/` for any scoring rule change
+

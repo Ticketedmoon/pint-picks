@@ -1,4 +1,4 @@
-# BirdieBets Common Actions Skill
+# PintPicks Common Actions Skill
 
 ## When to Use
 
@@ -85,3 +85,4 @@ firebase.json             # Firebase CLI config
 - ESPN data cached at two layers: server-side (60s) and browser (3 min)
 - Firestore security rules in `firestore.rules`, deploy via Firebase CLI
 - ADRs for all architectural decisions in `docs/adr/`
+
