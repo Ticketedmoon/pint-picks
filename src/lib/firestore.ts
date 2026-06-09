@@ -62,7 +62,7 @@ export async function createParty(
     currency,
     secondPlacePayout,
     thirdPlacePayout,
-    ...(sportType ? { sportType } : {}),
+    sportType: sportType || "golf",
     ...(leagueSlug ? { leagueSlug } : {}),
     ...(customGroups ? { customGroups } : {}),
     ...(snapshotWildcards ? { snapshotWildcards } : {}),
