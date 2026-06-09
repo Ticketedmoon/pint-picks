@@ -125,6 +125,8 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!user) return;
+    setLoading(true);
+    setParties([]);
     getPartiesForUser(user.uid).then((p) => {
       // Filter by sport type (existing parties without sportType are golf)
       const filtered = p.filter((party) => (party.sportType || "golf") === sport);

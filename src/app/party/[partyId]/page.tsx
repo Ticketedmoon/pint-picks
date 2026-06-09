@@ -270,7 +270,7 @@ function PartyContent() {
     setLeaving(true);
     try {
       await leaveParty(partyId, user.uid);
-      router.push(party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard");
+      router.push(`/dashboard?sport=${party.sportType || "golf"}`);
     } catch {
       setError("Failed to leave party");
       setLeaving(false);
@@ -282,7 +282,7 @@ function PartyContent() {
     setDeleting(true);
     try {
       await deleteParty(partyId);
-      router.push(party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard");
+      router.push(`/dashboard?sport=${party.sportType || "golf"}`);
     } catch {
       setError("Failed to delete party");
       setDeleting(false);
@@ -400,7 +400,7 @@ function PartyContent() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link
-            href={party.sportType === "football" ? "/dashboard?sport=football" : "/dashboard"}
+            href={`/dashboard?sport=${party.sportType || "golf"}`}
             className="mb-2 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
