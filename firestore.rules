@@ -80,10 +80,16 @@ service cloud.firestore {
     // ─── Analytics ───
     // Any signed-in user can write analytics events (page views, clicks).
     // Updates needed for increment() on aggregated docs.
+    // Only the admin user can read analytics data.
+
+    function isAdmin() {
+      return request.auth.uid == 'O9xgSWINxiZQQFi142PE1JI2u5C3';
+    }
+
     // ─── Analytics General ───
     // Per-user aggregated analytics for non-tournament browsing.
     match /analytics_general/{uid} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && isAdmin();
       allow create, update: if isSignedIn();
       allow delete: if false;
     }
@@ -91,7 +97,7 @@ service cloud.firestore {
     // ─── Analytics Tournament ───
     // Per-user per-tournament aggregated analytics.
     match /analytics_tournament/{docId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && isAdmin();
       allow create, update: if isSignedIn();
       allow delete: if false;
     }

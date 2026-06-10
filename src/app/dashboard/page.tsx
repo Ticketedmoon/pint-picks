@@ -10,6 +10,44 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Party, SportType } from "@/types";
 
+const GOLF_RULES = {
+  emoji: "⛳",
+  howItWorks: "Pick 6 golfers from tiered groups based on world rankings. Your total score is the sum of all your golfers' scores relative to par. Lowest total wins.",
+  tiers: [
+    { label: "A", desc: "Top-ranked (world #1-6)" },
+    { label: "B", desc: "Contenders (#7-12)" },
+    { label: "C", desc: "Dark horses (#13-18)" },
+    { label: "D", desc: "Underdogs (#19-24)" },
+    { label: "W1 / W2", desc: "Wildcards (#25+)" },
+  ],
+  scoring: [
+    { rule: "Score to par", detail: "Each golfer's cumulative score vs par across all rounds" },
+    { rule: "Cut players", detail: "Scored at the cut line + 1" },
+    { rule: "Made cut, drifted up", detail: "Capped at the cut line (you're not penalised for a bad weekend)" },
+    { rule: "WD / DQ", detail: "Flat +1 stroke penalty on top of their last score" },
+  ],
+  tip: "Lower is better. A golfer at -8 is worth more than one at +2.",
+};
+
+const FOOTBALL_RULES = {
+  emoji: "⚽",
+  howItWorks: "Pick 6 teams from tiered groups based on FIFA rankings. Your total is the sum of match points earned by your teams. Highest total wins.",
+  tiers: [
+    { label: "A", desc: "Powerhouses (FIFA rank 1-6)" },
+    { label: "B", desc: "Contenders (rank 7-12)" },
+    { label: "C", desc: "Dark horses (rank 13-18)" },
+    { label: "D", desc: "Underdogs (rank 19-24)" },
+    { label: "W1 / W2", desc: "Wildcards (rank 25+)" },
+  ],
+  scoring: [
+    { rule: "Win", detail: "3 points" },
+    { rule: "Draw", detail: "1 point" },
+    { rule: "Loss", detail: "0 points" },
+    { rule: "Eliminated", detail: "No more points, but existing points still count" },
+  ],
+  tip: "Teams that go deep in the tournament rack up more matches and more points.",
+};
+
 function statusBadge(status: Party["status"]) {
   const styles = {
     picking: "bg-yellow-100 text-yellow-800",
@@ -145,6 +183,16 @@ function DashboardContent() {
     }
   };
 
+  const rules = sport === "golf" ? GOLF_RULES : FOOTBALL_RULES;
+  const [rulesOpen, setRulesOpen] = useState(false);
+
+  useEffect(() => {
+    if (!rulesOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setRulesOpen(false); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [rulesOpen]);
+
   const activeParties = parties.filter((p) => p.status === "picking" || p.status === "locked");
   const pastParties = parties.filter((p) => p.status === "complete");
 
@@ -178,7 +226,82 @@ function DashboardContent() {
         >
           Join Party
         </Link>
+        <button
+          onClick={() => setRulesOpen(true)}
+          className="w-full rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-center font-medium text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 sm:w-auto"
+        >
+          How It Works
+        </button>
       </div>
+
+      {rulesOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setRulesOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="How it works"
+        >
+          <div
+            className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 rounded-t-2xl">
+              <div className="flex items-center">
+                <h2 className="text-base font-bold text-gray-900">How It Works</h2>
+              </div>
+              <button
+                onClick={() => setRulesOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 pb-6 pt-4 space-y-5">
+              {/* Overview */}
+              <p className="text-sm text-gray-600 leading-relaxed">{rules.howItWorks}</p>
+
+              {/* Pick tiers */}
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pick Tiers</h4>
+                <div className="space-y-2">
+                  {rules.tiers.map((tier) => (
+                    <div key={tier.label} className="flex items-start gap-2.5">
+                      <span className="inline-flex items-center justify-center rounded-md bg-white border border-gray-200 px-2 py-0.5 text-xs font-bold text-gray-700 min-w-[40px] text-center shadow-sm">
+                        {tier.label}
+                      </span>
+                      <span className="text-sm text-gray-600">{tier.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scoring */}
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Scoring</h4>
+                <div className="space-y-2.5">
+                  {rules.scoring.map((item) => (
+                    <div key={item.rule} className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:gap-2.5">
+                      <span className="text-xs font-bold text-gray-700">
+                        {item.rule}
+                      </span>
+                      <span className="text-sm text-gray-600">{item.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pro tip */}
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+                <span className="text-sm">💡</span>
+                <p className="text-sm text-amber-800">{rules.tip}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {parties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-16 text-center sm:py-20">

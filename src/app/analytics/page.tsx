@@ -6,6 +6,17 @@ import { useEffect, useState } from "react";
 import { collection, doc, getDocs, setDoc, increment } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 
+interface PartyInfo {
+  id: string;
+  name: string;
+  createdBy: string;
+  creatorName: string;
+  memberUids: string[];
+  sportType: string;
+  tournamentId: string;
+  tournamentName: string;
+}
+
 interface AnalyticsData {
   totalViews: number;
   totalClicks: number;
@@ -18,6 +29,11 @@ interface AnalyticsData {
   tournamentDocs: TournamentAnalytics[];
   tournamentNames: Record<string, string>;
   systemHealth: SystemHealth;
+  parties: PartyInfo[];
+  /** Map of uid to display name, built from the users collection */
+  uidToName: Record<string, string>;
+  /** Map of uid to email address, built from the users collection */
+  uidToEmail: Record<string, string>;
 }
 
 interface SystemHealth {
@@ -219,6 +235,7 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(false);
+  const [selectedPartyId, setSelectedPartyId] = useState<string>("all");
 
   const fetchData = async (email: string, bypassCache = false) => {
     // Try sessionStorage cache first
@@ -400,11 +417,29 @@ export default function AnalyticsPage() {
 
       // Build tournament name map from parties
       const tournamentNames = new Map<string, string>();
+      const uidToName = new Map<string, string>();
+      const uidToEmail = new Map<string, string>();
+      for (const u of usersSnap.docs) {
+        const uData = u.data();
+        uidToName.set(u.id, (uData.displayName as string) || (uData.email as string) || u.id.slice(0, 8));
+        if (uData.email) uidToEmail.set(u.id, uData.email as string);
+      }
+      const parties: PartyInfo[] = [];
       for (const p of partiesSnap.docs) {
         const pData = p.data();
         const tid = pData.tournamentId as string;
         const tname = pData.tournamentName as string;
         if (tid && tname) tournamentNames.set(tid, tname);
+        parties.push({
+          id: p.id,
+          name: (pData.name as string) || "Unnamed Party",
+          createdBy: pData.createdBy as string,
+          creatorName: uidToName.get(pData.createdBy as string) || (pData.createdBy as string)?.slice(0, 8) || "Unknown",
+          memberUids: (pData.memberUids as string[]) || [],
+          sportType: (pData.sportType as string) || "golf",
+          tournamentId: tid || "",
+          tournamentName: tname || "",
+        });
       }
 
       // Build sorted daily visits for chart
@@ -434,6 +469,9 @@ export default function AnalyticsPage() {
           estimatedDailyReads: estimateDailyReads(userCount, partyCount),
           estimatedDailyWrites: estimateDailyWrites(userCount),
         },
+        parties,
+        uidToName: Object.fromEntries(uidToName),
+        uidToEmail: Object.fromEntries(uidToEmail),
       };
 
       setData(result);
@@ -511,11 +549,108 @@ export default function AnalyticsPage() {
 
   if (!data) return null;
 
-  const userEntries = Object.entries(data.byUser).sort((a, b) => (b[1].views + b[1].clicks) - (a[1].views + a[1].clicks));
+  // Party filtering
+  const selectedParty = selectedPartyId !== "all"
+    ? data.parties.find((p) => p.id === selectedPartyId)
+    : null;
+  const partyMemberSet = selectedParty
+    ? new Set(selectedParty.memberUids)
+    : null;
+
+  // Filter byUser to selected party members, backfilling missing members with zeros
+  const emptyUserEntry = { email: null as string | null, views: 0, clicks: 0, lastVisit: "", pages: {} as Record<string, number>, dailyDates: {} as Record<string, number> };
+  const filteredByUser = partyMemberSet
+    ? Object.fromEntries(
+        Array.from(partyMemberSet).map((uid) => [
+          uid,
+          data.byUser[uid] || { ...emptyUserEntry, email: data.uidToEmail?.[uid] || null },
+        ])
+      )
+    : data.byUser;
+
+  // Recompute totals from filtered users
+  const filteredTotalViews = partyMemberSet
+    ? Object.values(filteredByUser).reduce((s, u) => s + u.views, 0)
+    : data.totalViews;
+  const filteredTotalClicks = partyMemberSet
+    ? Object.values(filteredByUser).reduce((s, u) => s + u.clicks, 0)
+    : data.totalClicks;
+  const filteredUniqueUsers = Object.keys(filteredByUser).length;
+
+  // Filter daily visits to selected party members
+  const filteredDailyVisits = partyMemberSet
+    ? (() => {
+        const buckets: Record<string, number> = {};
+        for (const info of Object.values(filteredByUser)) {
+          for (const [date, count] of Object.entries(info.dailyDates || {})) {
+            buckets[date] = (buckets[date] || 0) + count;
+          }
+        }
+        return Object.entries(buckets)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, count]) => {
+            const d = new Date(date + "T12:00:00");
+            const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+            return { date, label, count };
+          });
+      })()
+    : data.dailyVisits;
+
+  // Filter page breakdown to selected party members
+  const filteredByPage = partyMemberSet
+    ? (() => {
+        const pages: Record<string, number> = {};
+        for (const info of Object.values(filteredByUser)) {
+          for (const [page, count] of Object.entries(info.pages || {})) {
+            pages[page] = (pages[page] || 0) + count;
+          }
+        }
+        return pages;
+      })()
+    : data.byPage;
+
+  // Filter tournament docs to selected party members, backfilling missing members
+  const filteredTournamentDocs = (() => {
+    if (!partyMemberSet || !selectedParty) {
+      return data.tournamentDocs;
+    }
+
+    // Find the matching tournamentId by resolving the party's tournament name
+    // against the tournamentNames map (which maps analytics tournamentId -> name)
+    const matchingTournamentId = Object.entries(data.tournamentNames)
+      .find(([, name]) => name === selectedParty.tournamentName)?.[0];
+
+    // Filter docs to party members + matching tournament only
+    const existing = data.tournamentDocs.filter(
+      (td) => partyMemberSet.has(td.uid) && (!matchingTournamentId || td.tournamentId === matchingTournamentId)
+    );
+    const existingUids = new Set(existing.map((td) => td.uid));
+
+    // Backfill party members who have no tournament analytics
+    const backfillTournamentId = matchingTournamentId || selectedParty.tournamentId || "";
+    for (const uid of partyMemberSet) {
+      if (!existingUids.has(uid)) {
+        existing.push({
+          docId: `backfill_${uid}`,
+          uid,
+          tournamentId: backfillTournamentId,
+          email: data.uidToEmail?.[uid] || null,
+          totalViews: 0,
+          totalClicks: 0,
+          pages: {},
+          browsers: {},
+          lastVisit: "",
+        });
+      }
+    }
+    return existing;
+  })();
+
+  const userEntries = Object.entries(filteredByUser).sort((a, b) => (b[1].views + b[1].clicks) - (a[1].views + a[1].clicks));
 
   // Group tournament docs by tournamentId
   const tournamentGroups = new Map<string, TournamentAnalytics[]>();
-  for (const td of data.tournamentDocs) {
+  for (const td of filteredTournamentDocs) {
     const existing = tournamentGroups.get(td.tournamentId) || [];
     existing.push(td);
     tournamentGroups.set(td.tournamentId, existing);
@@ -525,10 +660,12 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">📊 Analytics</h1>
-            <p className="text-sm text-gray-500 mt-1">Aggregated totals</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedParty ? `${selectedParty.name} (by ${selectedParty.creatorName})` : "All parties"}
+            </p>
           </div>
           <button
             onClick={() => user?.email && fetchData(user.email, true)}
@@ -539,23 +676,65 @@ export default function AnalyticsPage() {
           </button>
         </div>
 
+        {/* Party selector */}
+        {data.parties.length > 0 && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedPartyId("all")}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedPartyId === "all"
+                    ? "bg-green-700 text-white"
+                    : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                All Parties
+              </button>
+              {data.parties.map((party) => {
+                const hasDuplicateName = data.parties.filter((p) => p.name === party.name).length > 1;
+                return (
+                  <button
+                    key={party.id}
+                    onClick={() => setSelectedPartyId(party.id)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      selectedPartyId === party.id
+                        ? "bg-green-700 text-white"
+                        : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    {party.name}
+                    {hasDuplicateName && (
+                      <span className={`ml-1 ${selectedPartyId === party.id ? "text-green-200" : "text-gray-400"}`}>
+                        ({party.creatorName})
+                      </span>
+                    )}
+                    <span className={`ml-1 ${selectedPartyId === party.id ? "text-green-200" : "text-gray-400"}`}>
+                      · {party.memberUids.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-8 sm:grid-cols-4">
-          <StatCard label="Total Views" value={data.totalViews} />
-          <StatCard label="Total Clicks" value={data.totalClicks} />
-          <StatCard label="Unique Users" value={data.uniqueUsers} />
+          <StatCard label="Total Views" value={filteredTotalViews} />
+          <StatCard label="Total Clicks" value={filteredTotalClicks} />
+          <StatCard label="Unique Users" value={filteredUniqueUsers} />
           <StatCard label="Analytics Docs" value={data.systemHealth.analyticsDocs} />
         </div>
 
         {/* Daily activity chart */}
-        <DailyChart data={data.dailyVisits} />
+        <DailyChart data={filteredDailyVisits} />
 
         {/* Breakdowns - 3 charts per row */}
         <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
-          <BreakdownChart title="By Page" data={sortedEntries(data.byPage)} color="bg-green-500" />
+          <BreakdownChart title="By Page" data={sortedEntries(filteredByPage)} color="bg-green-500" />
           <BreakdownChart
             title="By User"
-            data={userEntries.map(([uid, info]) => [info.email || uid.slice(0, 12), info.views + info.clicks])}
+            data={userEntries.map(([uid, info]) => [info.email || data.uidToName?.[uid] || uid.slice(0, 12), info.views + info.clicks])}
             color="bg-amber-500"
           />
           <BreakdownChart title="By Browser" data={sortedEntries(data.byBrowser)} color="bg-blue-500" />
@@ -564,7 +743,7 @@ export default function AnalyticsPage() {
             title="User Return Frequency (Days Active)"
             data={userEntries.map(([uid, info]) => {
               const dailyDays = Object.keys(info.dailyDates || {}).length;
-              return [info.email || uid.slice(0, 12), dailyDays || (info.views > 0 ? 1 : 0)] as [string, number];
+              return [info.email || data.uidToName?.[uid] || uid.slice(0, 12), dailyDays || (info.views > 0 ? 1 : 0)] as [string, number];
             }).filter(([, d]) => d > 0).sort((a, b) => (b[1] as number) - (a[1] as number))}
             color="bg-teal-500"
           />
@@ -591,7 +770,7 @@ export default function AnalyticsPage() {
                 <tbody className="divide-y divide-gray-100">
                   {userEntries.map(([uid, info]) => (
                     <tr key={uid}>
-                      <td className="px-4 py-2.5 text-gray-700">{info.email || uid}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{info.email || data.uidToName?.[uid] || uid}</td>
                       <td className="px-4 py-2.5 text-right font-medium text-gray-900">{info.views}</td>
                       <td className="px-4 py-2.5 text-right font-medium text-gray-900">{info.clicks}</td>
                       <td className="px-4 py-2.5 text-right text-xs text-gray-500">
@@ -628,7 +807,7 @@ export default function AnalyticsPage() {
                       .sort((a, b) => (b[1] as number) - (a[1] as number))
                       .map(([page, count], idx) => (
                         <tr key={`${uid}-${page}-${idx}`}>
-                          <td className="px-4 py-2 text-gray-700 truncate max-w-[120px]">{info.email || uid.slice(0, 12)}</td>
+                          <td className="px-4 py-2 text-gray-700 truncate max-w-[120px]">{info.email || data.uidToName?.[uid] || uid.slice(0, 12)}</td>
                           <td className="px-4 py-2 text-gray-600 font-mono text-xs truncate max-w-[180px]">{page.startsWith("_") ? "/" + page.slice(1).replace(/_/g, "/") : page}</td>
                           <td className="px-4 py-2 text-right font-medium text-gray-900">{count as number}</td>
                         </tr>
@@ -677,7 +856,7 @@ export default function AnalyticsPage() {
                       <tbody className="divide-y divide-gray-50">
                         {docs.sort((a, b) => b.totalViews - a.totalViews).map((d) => (
                           <tr key={d.docId}>
-                            <td className="px-4 py-2 text-gray-700">{d.email || d.uid.slice(0, 12)}</td>
+                            <td className="px-4 py-2 text-gray-700">{d.email || data.uidToName?.[d.uid] || d.uid.slice(0, 12)}</td>
                             <td className="px-4 py-2 text-right font-medium text-gray-900">{d.totalViews}</td>
                             <td className="px-4 py-2 text-right font-medium text-gray-900">{d.totalClicks}</td>
                             <td className="px-4 py-2 text-right text-xs text-gray-500">
