@@ -54,7 +54,7 @@ service cloud.firestore {
       // Members can read all picks (needed for leaderboard).
       // Users can only write their own picks.
       match /picks/{uid} {
-        allow read: if isSignedIn() && isPartyMember(partyId);
+        allow read: if isSignedIn() && (isPartyMember(partyId) || isAdmin());
         allow write: if isSignedIn() && isOwner(uid) && isPartyMember(partyId);
       }
 

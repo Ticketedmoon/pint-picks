@@ -32,7 +32,7 @@ function PartyContent() {
   const { partyId } = useParams<{ partyId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, godMode } = useAuth();
   const [party, setParty] = useState<Party | null>(null);
 
   // Track page views under the tournament's analytics doc
@@ -294,7 +294,7 @@ function PartyContent() {
   const userHasPicksForPrompt = userEntry?.picks.some((p) => p.playerId);
   useEffect(() => {
     if (!party || leaderboard.length === 0) return; // Wait for data to load
-    if (party.status === "picking" && !userHasPicksForPrompt) {
+    if (party.status === "picking" && !userHasPicksForPrompt && !isGuestViewer) {
       const key = `pickPromptDismissed_${party.id}`;
       if (!sessionStorage.getItem(key)) {
         setShowPickPrompt(true);
@@ -332,6 +332,7 @@ function PartyContent() {
   const userHasPicks = userHasPicksForPrompt;
   const isLocked = party.status !== "picking";
   const picksRevealed = isLocked;
+  const isGuestViewer = godMode && !party.memberUids.includes(user?.uid || "");
 
   const dismissPickPrompt = () => {
     setShowPickPrompt(false);
@@ -451,13 +452,15 @@ function PartyContent() {
           })()}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
-          <button
-            onClick={() => setShowInviteForm(!showInviteForm)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
-          >
-            {showInviteForm ? "✕ Close" : "➕ Invite More"}
-          </button>
-          {!isLocked && !userHasPicks && (
+          {!isGuestViewer && (
+            <button
+              onClick={() => setShowInviteForm(!showInviteForm)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
+            >
+              {showInviteForm ? "✕ Close" : "➕ Invite More"}
+            </button>
+          )}
+          {!isGuestViewer && !isLocked && !userHasPicks && (
             <Link
               href={`/party/${party.id}/picks`}
               className="w-full rounded-lg bg-green-700 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-green-600 sm:w-auto"
@@ -465,7 +468,7 @@ function PartyContent() {
               {sport.emoji} {sport.pickActionLabel}
             </Link>
           )}
-          {!isLocked && userHasPicks && (
+          {!isGuestViewer && !isLocked && userHasPicks && (
             <Link
               href={`/party/${party.id}/picks`}
               className="w-full rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-yellow-500 sm:w-auto"
@@ -743,6 +746,7 @@ function PartyContent() {
       </div>
 
       {/* Leave / Delete Party actions */}
+      {!isGuestViewer && (
       <div className="mt-12 border-t border-gray-200 pt-8 flex flex-col gap-4">
         {/* Leave Party - visible to non-creators, only during picking phase */}
         {user?.uid !== party.createdBy && party.status === "picking" && (
@@ -814,6 +818,7 @@ function PartyContent() {
           </>
         )}
       </div>
+      )}
 
       {showTournamentLeaderboard && (
         <TournamentLeaderboardModal

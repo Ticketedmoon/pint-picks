@@ -84,6 +84,11 @@ export async function getPartiesForUser(uid: string): Promise<Party[]> {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Party);
 }
 
+export async function getAllParties(): Promise<Party[]> {
+  const snap = await getDocs(collection(db(), "parties"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Party);
+}
+
 export async function joinPartyByCode(code: string, uid: string): Promise<Party | null> {
   const q = query(collection(db(), "parties"), where("inviteCode", "==", code.toUpperCase()));
   const snap = await getDocs(q);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPartiesForUser, deleteParty } from "@/lib/firestore";
+import { getPartiesForUser, getAllParties, deleteParty } from "@/lib/firestore";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardSkeleton } from "@/components/Skeletons";
@@ -69,10 +69,12 @@ function statusBadge(status: Party["status"]) {
 function PartyCard({
   party,
   isCreator,
+  isGuestView,
   onDelete,
 }: {
   party: Party;
   isCreator: boolean;
+  isGuestView?: boolean;
   onDelete: (partyId: string) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -96,7 +98,7 @@ function PartyCard({
   };
 
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white transition-all hover:border-gray-300 hover:shadow-md">
+    <div className={`group relative rounded-xl border bg-white transition-all hover:shadow-md ${isGuestView ? "border-dashed border-gray-300 opacity-80" : "border-gray-200 hover:border-gray-300"}`}>
       <Link
         href={`/party/${party.id}`}
         className="block px-5 py-4 sm:px-6 sm:py-5"
@@ -152,7 +154,7 @@ function PartyCard({
 }
 
 function DashboardContent() {
-  const { user } = useAuth();
+  const { user, godMode } = useAuth();
   const searchParams = useSearchParams();
   const sport = (searchParams.get("sport") as SportType) || "golf";
   const [parties, setParties] = useState<Party[]>([]);
@@ -165,14 +167,14 @@ function DashboardContent() {
     if (!user) return;
     setLoading(true);
     setParties([]);
-    getPartiesForUser(user.uid).then((p) => {
-      // Filter by sport type (existing parties without sportType are golf)
+    const fetcher = godMode ? getAllParties() : getPartiesForUser(user.uid);
+    fetcher.then((p) => {
       const filtered = p.filter((party) => (party.sportType || "golf") === sport);
       filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setParties(filtered);
       setLoading(false);
     });
-  }, [user, sport]);
+  }, [user, sport, godMode]);
 
   const handleDelete = async (partyId: string) => {
     try {
@@ -335,6 +337,7 @@ function DashboardContent() {
                     key={party.id}
                     party={party}
                     isCreator={party.createdBy === user?.uid}
+                    isGuestView={godMode && !party.memberUids.includes(user?.uid || "")}
                     onDelete={handleDelete}
                   />
                 ))}
@@ -354,6 +357,7 @@ function DashboardContent() {
                     key={party.id}
                     party={party}
                     isCreator={party.createdBy === user?.uid}
+                    isGuestView={godMode && !party.memberUids.includes(user?.uid || "")}
                     onDelete={handleDelete}
                   />
                 ))}
