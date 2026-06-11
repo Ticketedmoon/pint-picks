@@ -94,6 +94,25 @@ export interface Party {
   invalidPicks?: { uid: string; playerName: string; slot: string }[];
   /** Timestamp of last email notification sent for invalid picks */
   lastInvalidNotifiedAt?: string;
+  /** Ordered tiebreaker rules for resolving equal scores. If unset, sport defaults apply. */
+  tiebreakerRules?: TiebreakerRule[];
+}
+
+export type TiebreakerRuleId =
+  | "furthest_team"
+  | "goals_scored"
+  | "least_goals_conceded"
+  | "goal_difference"
+  | "most_wins"
+  | "best_finishing_position"
+  | "most_cuts_made"
+  | "fewest_bogeys"
+  | "lowest_single_round";
+
+export interface TiebreakerRule {
+  id: TiebreakerRuleId;
+  label: string;
+  description: string;
 }
 
 export interface PartyInvite {
@@ -134,6 +153,8 @@ export interface LeaderboardEntry {
     actualDisplayScore?: string;
     /** Per-round score relative to par, e.g. ["-2", "E", "+1", "-3"] */
     roundScoresToPar?: string[];
+    /** Tournament finishing position, e.g. "T3", "1", "CUT" */
+    position?: string;
   }[];
   totalScore: number;
   displayTotal: string;

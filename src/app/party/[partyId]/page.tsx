@@ -20,7 +20,7 @@ import {
   INVITE_RESULT_MS,
 } from "@/lib/constants";
 import { formatScoreToPar } from "@/lib/sports/golf/espn";
-import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty } from "@/lib/firestore";
+import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty, updatePartyName } from "@/lib/firestore";
 import { buildLeaderboardEntries } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
@@ -65,6 +65,9 @@ function PartyContent() {
   const [tournamentScores, setTournamentScores] = useState<PlayerScore[]>([]);
   const [showTournamentLeaderboard, setShowTournamentLeaderboard] = useState(false);
   const [showPickPrompt, setShowPickPrompt] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   // Show email send results from create flow
   useEffect(() => {
@@ -289,6 +292,24 @@ function PartyContent() {
     }
   };
 
+  const handleRenameParty = async () => {
+    const trimmed = editedName.trim();
+    if (!party || !partyId || !trimmed || trimmed === party.name) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updatePartyName(partyId, trimmed);
+      setParty({ ...party, name: trimmed });
+      setEditingName(false);
+    } catch {
+      setError("Failed to rename party");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   // Show "make your picks" prompt on first visit when picks aren't done
   const userEntry = leaderboard.find((e) => e.uid === user?.uid);
   const userHasPicksForPrompt = userEntry?.picks.some((p) => p.playerId);
@@ -430,7 +451,59 @@ function PartyContent() {
             </svg>
             Back to dashboard
           </Link>
-          <h1 className="break-words text-2xl font-bold text-gray-900 sm:text-3xl">{party.name}</h1>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRenameParty();
+                  if (e.key === "Escape") setEditingName(false);
+                }}
+                maxLength={60}
+                autoFocus
+                className="text-2xl font-bold text-gray-900 sm:text-3xl border-b-2 border-green-500 bg-transparent outline-none w-full max-w-md"
+                disabled={savingName}
+              />
+              <button
+                onClick={handleRenameParty}
+                disabled={savingName}
+                className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                title="Save"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                  <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setEditingName(false)}
+                disabled={savingName}
+                className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                title="Cancel"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <h1 className="break-words text-2xl font-bold text-gray-900 sm:text-3xl group">
+              {party.name}
+              {user?.uid === party.createdBy && party.status === "picking" && (
+                <button
+                  onClick={() => { setEditedName(party.name); setEditingName(true); }}
+                  className="ml-2 inline-flex align-middle text-gray-300 hover:text-gray-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  title="Rename party"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 sm:h-5 sm:w-5">
+                    <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                  </svg>
+                </button>
+              )}
+            </h1>
+          )}
           <p className="mt-1 break-words text-sm text-gray-500 sm:text-base">
             {party.tournamentName} • {party.memberUids.length} member
             {party.memberUids.length !== 1 ? "s" : ""}
@@ -471,6 +544,42 @@ function PartyContent() {
               </div>
             );
           })()}
+          {party.sportType === "football" && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-gray-400">Tiebreakers:</span>
+              {(party.tiebreakerRules && party.tiebreakerRules.length > 0
+                ? party.tiebreakerRules
+                : [
+                    { id: "furthest_team", label: "Furthest team" },
+                    { id: "goals_scored", label: "Goals scored" },
+                    { id: "least_goals_conceded", label: "Least conceded" },
+                  ]
+              ).map((rule, i, arr) => (
+                <span key={rule.id} className="inline-flex items-center gap-1 text-xs text-gray-500">
+                  <span className="font-medium">{i + 1}.</span> {rule.label}
+                  {i < arr.length - 1 && <span className="text-gray-300 ml-0.5">→</span>}
+                </span>
+              ))}
+            </div>
+          )}
+          {(!party.sportType || party.sportType === "golf") && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-gray-400">Tiebreakers:</span>
+              {(party.tiebreakerRules && party.tiebreakerRules.length > 0
+                ? party.tiebreakerRules
+                : [
+                    { id: "best_finishing_position", label: "Best finishing golfer" },
+                    { id: "most_cuts_made", label: "Most cuts made" },
+                    { id: "lowest_single_round", label: "Lowest single round" },
+                  ]
+              ).map((rule, i, arr) => (
+                <span key={rule.id} className="inline-flex items-center gap-1 text-xs text-gray-500">
+                  <span className="font-medium">{i + 1}.</span> {rule.label}
+                  {i < arr.length - 1 && <span className="text-gray-300 ml-0.5">→</span>}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
           {!isGuestViewer && (

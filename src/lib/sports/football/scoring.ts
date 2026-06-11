@@ -1,6 +1,7 @@
 import type { FootballTeamScore, FootballLeaderboardEntry } from "@/lib/sports/football/types";
-import type { Party, Picks } from "@/types";
+import type { Party, Picks, TiebreakerRule } from "@/types";
 import { PICK_SLOT_DEFS } from "@/lib/constants";
+import { DEFAULT_FOOTBALL_TIEBREAKERS, applyFootballTiebreakers } from "@/lib/tiebreaker";
 
 /**
  * Football scoring: Win = 3, Draw = 1, Loss = 0.
@@ -61,6 +62,8 @@ export function buildFootballLeaderboardEntries(
               draws: 0,
               losses: 0,
               eliminated: false,
+              goalsFor: 0,
+              goalsAgainst: 0,
             };
           }
 
@@ -79,6 +82,8 @@ export function buildFootballLeaderboardEntries(
               draws: 0,
               losses: 0,
               eliminated: false,
+              goalsFor: 0,
+              goalsAgainst: 0,
             };
           }
 
@@ -96,6 +101,8 @@ export function buildFootballLeaderboardEntries(
             draws: teamScore.draws,
             losses: teamScore.losses,
             eliminated: teamScore.eliminated,
+            goalsFor: teamScore.goalsFor,
+            goalsAgainst: teamScore.goalsAgainst,
           };
         })
       : [];
@@ -109,7 +116,8 @@ export function buildFootballLeaderboardEntries(
     };
   });
 
-  // Sort by total points descending (highest points wins in football)
+  // Sort by total points descending, then apply tiebreakers for equal scores
+  const rules = party.tiebreakerRules || DEFAULT_FOOTBALL_TIEBREAKERS;
   entries.sort((a, b) => b.totalPoints - a.totalPoints);
-  return entries;
+  return applyFootballTiebreakers(entries, rules);
 }

@@ -46,6 +46,7 @@ export async function createParty(
   sportType?: Party["sportType"],
   leagueSlug?: Party["leagueSlug"],
   payoutSplit?: Party["payoutSplit"],
+  tiebreakerRules?: Party["tiebreakerRules"],
 ): Promise<Party> {
   const partyRef = doc(collection(db(), "parties"));
   const party: Omit<Party, "id"> = {
@@ -67,6 +68,7 @@ export async function createParty(
     ...(customGroups ? { customGroups } : {}),
     ...(snapshotWildcards ? { snapshotWildcards } : {}),
     ...(payoutSplit ? { payoutSplit } : {}),
+    ...(tiebreakerRules ? { tiebreakerRules } : {}),
   };
   await setDoc(partyRef, party);
   return { id: partyRef.id, ...party };
@@ -123,6 +125,13 @@ export async function updatePartyStatus(
   status: Party["status"]
 ): Promise<void> {
   await updateDoc(doc(db(), "parties", partyId), { status });
+}
+
+export async function updatePartyName(
+  partyId: string,
+  name: string
+): Promise<void> {
+  await updateDoc(doc(db(), "parties", partyId), { name });
 }
 
 export async function updatePartyInvalidPicks(

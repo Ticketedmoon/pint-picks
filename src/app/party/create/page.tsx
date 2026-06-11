@@ -11,6 +11,8 @@ import { fetchCurrentTournaments, fetchDynamicGroups } from "@/lib/sports/golf/e
 import { calculatePayouts, PAYOUT_PRESETS, type PayoutPresetKey } from "@/lib/payouts";
 import { FOOTBALL_LEAGUES } from "@/lib/sports/football/leagues";
 import type { Tournament, Party, Player, SportType } from "@/types";
+import type { TiebreakerRule } from "@/types";
+import { FOOTBALL_TIEBREAKER_OPTIONS, DEFAULT_FOOTBALL_TIEBREAKERS, GOLF_TIEBREAKER_OPTIONS, DEFAULT_GOLF_TIEBREAKERS } from "@/lib/tiebreaker";
 import Link from "next/link";
 
 const GroupEditor = dynamic(() => import("@/components/GroupEditor").then(m => ({ default: m.GroupEditor })), { ssr: false });
@@ -55,6 +57,7 @@ interface CreatePartyData {
   customGroups: Record<string, PickItem[]> | null;
   wildcards?: PickItem[];
   leagueSlug?: string;
+  tiebreakerRules?: import("@/types").TiebreakerRule[];
 }
 
 /* ========== Golf-specific content ========== */
@@ -86,6 +89,7 @@ function GolfCreateContent({
   const [checkingField, setCheckingField] = useState(false);
   const [customGroups, setCustomGroups] = useState<Record<string, Array<{ id: string; displayName: string }>> | null>(null);
   const [groupsConfirmed, setGroupsConfirmed] = useState(false);
+  const [golfTiebreakerRules, setGolfTiebreakerRules] = useState<TiebreakerRule[]>([...DEFAULT_GOLF_TIEBREAKERS]);
 
   useEffect(() => {
     fetchCurrentTournaments()
@@ -153,6 +157,7 @@ function GolfCreateContent({
             ])
           )
         : null,
+      tiebreakerRules: golfTiebreakerRules,
     });
   };
 
@@ -225,6 +230,9 @@ function GolfCreateContent({
       </div>
 
       <BuyInSection buyIn={buyIn} setBuyIn={setBuyIn} secondPlacePayout={secondPlacePayout} setSecondPlacePayout={setSecondPlacePayout} thirdPlacePayout={thirdPlacePayout} setThirdPlacePayout={setThirdPlacePayout} payoutPreset={payoutPreset} setPayoutPreset={setPayoutPreset} payoutSplit={payoutSplit} setPayoutSplit={setPayoutSplit} />
+
+      {/* Tiebreaker Rules */}
+      <TiebreakerSection rules={golfTiebreakerRules} onChange={setGolfTiebreakerRules} sport="golf" />
 
       {/* Group Customisation */}
       <div>
@@ -307,6 +315,7 @@ function FootballCreateContent({
   const [customGroups, setCustomGroups] = useState<Record<string, PickItem[]> | null>(null);
   const [groupsConfirmed, setGroupsConfirmed] = useState(false);
   const [customStartDate, setCustomStartDate] = useState("");
+  const [tiebreakerRules, setTiebreakerRules] = useState<TiebreakerRule[]>([...DEFAULT_FOOTBALL_TIEBREAKERS]);
 
   const leagueConfig = FOOTBALL_LEAGUES[selectedLeague];
   const isCountry = leagueConfig?.teamType === "country";
@@ -383,6 +392,7 @@ function FootballCreateContent({
       customGroups: finalGroups,
       wildcards: finalWildcards,
       leagueSlug: selectedLeague,
+      tiebreakerRules,
     });
   };
 
@@ -573,6 +583,9 @@ function FootballCreateContent({
 
       <BuyInSection buyIn={buyIn} setBuyIn={setBuyIn} secondPlacePayout={secondPlacePayout} setSecondPlacePayout={setSecondPlacePayout} thirdPlacePayout={thirdPlacePayout} setThirdPlacePayout={setThirdPlacePayout} payoutPreset={payoutPreset} setPayoutPreset={setPayoutPreset} payoutSplit={payoutSplit} setPayoutSplit={setPayoutSplit} />
 
+      {/* Tiebreaker Rules */}
+      <TiebreakerSection rules={tiebreakerRules} onChange={setTiebreakerRules} sport="football" />
+
       <InviteSection emails={emails} setEmails={setEmails} />
 
       {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
@@ -589,6 +602,115 @@ function FootballCreateContent({
 }
 
 /* ========== Shared components ========== */
+
+function TiebreakerSection({
+  rules,
+  onChange,
+  sport = "football",
+}: {
+  rules: TiebreakerRule[];
+  onChange: (rules: TiebreakerRule[]) => void;
+  sport?: "golf" | "football";
+}) {
+  const allOptions = sport === "golf" ? GOLF_TIEBREAKER_OPTIONS : FOOTBALL_TIEBREAKER_OPTIONS;
+  const availableToAdd = allOptions.filter(
+    (opt) => !rules.some((r) => r.id === opt.id)
+  );
+
+  const moveRule = (index: number, direction: "up" | "down") => {
+    const newRules = [...rules];
+    const swapIdx = direction === "up" ? index - 1 : index + 1;
+    if (swapIdx < 0 || swapIdx >= newRules.length) return;
+    [newRules[index], newRules[swapIdx]] = [newRules[swapIdx], newRules[index]];
+    onChange(newRules);
+  };
+
+  const removeRule = (index: number) => {
+    onChange(rules.filter((_, i) => i !== index));
+  };
+
+  const addRule = (id: string) => {
+    const rule = FOOTBALL_TIEBREAKER_OPTIONS.find((r) => r.id === id);
+    if (rule) onChange([...rules, rule]);
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Tiebreaker Rules</label>
+      <p className="text-xs text-gray-400 mb-3">
+        When players are tied on points, these rules are applied in order to break the tie.
+      </p>
+
+      {rules.length === 0 && (
+        <p className="text-xs text-amber-600 mb-2">⚠️ No tiebreaker rules set. Ties will remain unbroken.</p>
+      )}
+
+      <div className="space-y-2 mb-3">
+        {rules.map((rule, index) => (
+          <div
+            key={rule.id}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+          >
+            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">
+              {index + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-gray-800">{rule.label}</span>
+              <span className="hidden sm:inline text-xs text-gray-400 ml-2">{rule.description}</span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => moveRule(index, "up")}
+                disabled={index === 0}
+                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
+                title="Move up"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                  <path fillRule="evenodd" d="M11.78 9.78a.75.75 0 0 1-1.06 0L8 7.06 5.28 9.78a.75.75 0 0 1-1.06-1.06l3.25-3.25a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => moveRule(index, "down")}
+                disabled={index === rules.length - 1}
+                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
+                title="Move down"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                  <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 0 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => removeRule(index)}
+                className="p-1 text-red-300 hover:text-red-500 transition-colors"
+                title="Remove"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                  <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {availableToAdd.length > 0 && (
+        <select
+          onChange={(e) => { addRule(e.target.value); e.target.value = ""; }}
+          defaultValue=""
+          className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500 hover:border-gray-400 transition-colors"
+        >
+          <option value="" disabled>+ Add tiebreaker rule...</option>
+          {availableToAdd.map((opt) => (
+            <option key={opt.id} value={opt.id}>{opt.label}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
 
 function BuyInSection({
   buyIn, setBuyIn, secondPlacePayout, setSecondPlacePayout, thirdPlacePayout, setThirdPlacePayout,
@@ -901,6 +1023,7 @@ function CreatePartyContent() {
         isFootball ? "football" : "golf",
         data.leagueSlug,
         data.payoutSplit,
+        data.tiebreakerRules,
       );
 
       // Handle email invites

@@ -1,6 +1,7 @@
 import { PICK_SLOT_DEFS } from "@/lib/constants";
 import { calculateEffectiveScore, formatScoreToPar } from "@/lib/sports/golf/espn";
 import { getSportConfig } from "@/lib/sports/registry";
+import { DEFAULT_GOLF_TIEBREAKERS, applyGolfTiebreakers } from "@/lib/tiebreaker";
 import type { LeaderboardEntry, Party, Picks, PlayerScore } from "@/types";
 
 /**
@@ -84,6 +85,7 @@ export function buildLeaderboardEntries(
           displayThru: score.displayThru,
           ...(wasCapped && { actualDisplayScore: formatScoreToPar(score.scoreToPar) }),
           ...(roundScoresToPar && { roundScoresToPar }),
+          ...(score.position && { position: score.position }),
         };
       }
 
@@ -99,6 +101,7 @@ export function buildLeaderboardEntries(
         status: score.status,
         headshot: score.headshot,
         ...(roundScoresToPar && { roundScoresToPar }),
+        ...(score.position && { position: score.position }),
       };
     });
 
@@ -117,5 +120,12 @@ export function buildLeaderboardEntries(
       ? a.totalScore - b.totalScore
       : b.totalScore - a.totalScore
   );
+
+  // Apply golf tiebreakers when sorting ascending (golf)
+  if (sport.sortDirection === "asc") {
+    const rules = party.tiebreakerRules || DEFAULT_GOLF_TIEBREAKERS;
+    return applyGolfTiebreakers(entries, rules);
+  }
+
   return entries;
 }

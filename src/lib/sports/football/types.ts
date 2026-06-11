@@ -101,6 +101,8 @@ export interface FootballLeaderboardEntry {
     draws: number;
     losses: number;
     eliminated: boolean;
+    goalsFor: number;
+    goalsAgainst: number;
   }[];
   totalPoints: number;
 }
