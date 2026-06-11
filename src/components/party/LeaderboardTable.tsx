@@ -117,7 +117,7 @@ export function LeaderboardTable({
                           <span className="hidden sm:inline">{hasSubmitted ? "✓ Picks submitted" : "Waiting..."}</span>
                         </span>
                       )}
-                      {!isOwnRow && !hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && (
+                      {!hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && (
                         <div className="ml-1 hidden items-center gap-1 sm:inline-flex">
                           <button
                             onClick={() => onSendUnlock(entry.uid)}

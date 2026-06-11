@@ -437,9 +437,15 @@ function PartyContent() {
       const token = crypto.randomUUID();
       await createPickUnlock(party.id, token, targetUid, user.uid);
 
-      // Build and copy the unlock URL
+      // Build the unlock URL
       const baseUrl = window.location.origin;
       const unlockUrl = `${baseUrl}/party/${party.id}/picks?unlock=${token}`;
+
+      // Self-unlock: navigate directly. Other members: copy link to clipboard.
+      if (targetUid === user.uid) {
+        router.push(`/party/${party.id}/picks?unlock=${token}`);
+        return;
+      }
       await navigator.clipboard.writeText(unlockUrl);
       setUnlockResult((prev) => ({ ...prev, [targetUid]: "✅ Unlock link copied to clipboard! Share it with the member." }));
     } catch {

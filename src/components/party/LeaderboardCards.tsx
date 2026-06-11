@@ -62,7 +62,7 @@ export function LeaderboardCards({
                     {hasSubmitted ? "✓ Submitted" : "Waiting..."}
                   </span>
                 )}
-                {!isOwnRow && !hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && (
+                {!hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && (
                   <div className="ml-2 flex items-center gap-1.5">
                     <button
                       onClick={() => onSendUnlock(entry.uid)}
