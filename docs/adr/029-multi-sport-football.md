@@ -83,6 +83,8 @@ All football endpoints use the base: `site.api.espn.com/apis/site/v2/sports/socc
 | League | Slug | Teams |
 |--------|------|-------|
 | FIFA World Cup 2026 | `fifa.world` | 48 national teams |
+
+**Note (2026-06-11):** The hardcoded `startDate` for FIFA World Cup was corrected from `21:00 UTC` to `19:00 UTC` (20:00 BST). The opening match is Mexico vs South Africa at Estadio Azteca. Existing Firestore party documents with the old time must be updated manually.
 | Premier League | `eng.1` | 20 clubs |
 | Champions League | `uefa.champions` | 36 clubs |
 

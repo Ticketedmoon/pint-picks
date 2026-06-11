@@ -44,7 +44,11 @@ Support **two invite mechanisms**:
 - Without email notifications, invited users must independently visit the app to discover invites
 - Invite codes could be shared beyond intended recipients (no access control)
 
-### Future Enhancements
+### Access Control (Added 2026-06-11)
+- Non-members who visit a party URL directly are blocked with an "Access Restricted" screen
+- Only users in `party.memberUids` (or godMode admins) can view the party page
+- Users must join via invite code link or email invitation to be added as a member
+- This replaced the previous behavior where any authenticated user could view any party by URL
 - Add email notifications using Resend or Firebase Cloud Functions
 - Add party admin controls (remove members, close party)
 - Add party privacy settings (public vs invite-only)

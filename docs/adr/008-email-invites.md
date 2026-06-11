@@ -18,9 +18,10 @@ Use **Resend** for transactional email invites.
 - **Free tier**: 3,000 emails/month
 - **Integration**: `resend` npm package, called from `/api/invite` server-side route
 - **Domain verification**: Required for sending to arbitrary recipients (DNS records: DKIM TXT, SPF MX + TXT, DMARC TXT)
-- **From address**: `Golf Tourney Tracker <invites@skybreak.app>` (custom verified domain)
+- **From address**: `PintPicks <invites@skybreak.app>` (custom verified domain)
 - **Fallback**: If email fails, party creation still succeeds - invite code always works
 - **Email content**: Branded HTML email with party name, inviter name, join button, and invite code
+- **DNS migration note**: When migrating DNS providers (e.g., DigitalOcean to Vercel), Resend DNS records (DKIM, SPF) must be re-added to the new provider or domain verification will fail after 72 hours
 
 ## Consequences
 ### Positive
