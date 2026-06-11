@@ -230,7 +230,7 @@ function PicksContent() {
         await savePicks(partyId, user.uid, picks);
       }
       setSuccess("Picks saved successfully!");
-      setTimeout(() => router.push(`/party/${partyId}`), 1500);
+      setTimeout(() => router.push(`/party/${partyId}?t=${Date.now()}`), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save picks");
     }

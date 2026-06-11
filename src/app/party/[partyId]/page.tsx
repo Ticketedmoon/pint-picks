@@ -101,6 +101,9 @@ function PartyContent() {
     return buildLeaderboardEntries(partyData, allPicks, usersInfo, scores, cl);
   };
 
+  // Re-fetch when navigating back from picks (cache-bust via ?t= param)
+  const refreshKey = searchParams.get("t");
+
   useEffect(() => {
     if (!partyId) return;
     setLoading(true);
@@ -131,7 +134,7 @@ function PartyContent() {
         setError(err.message);
         setLoading(false);
       });
-  }, [partyId]);
+  }, [partyId, refreshKey]);
 
   const handleRefresh = async () => {
     if (!party || refreshing) return;
