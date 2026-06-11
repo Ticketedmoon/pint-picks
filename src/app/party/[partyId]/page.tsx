@@ -329,6 +329,27 @@ function PartyContent() {
     );
   }
 
+  const isMember = party.memberUids.includes(user?.uid || "");
+  if (!isMember && !godMode) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+        <div className="bg-white rounded-xl shadow-md p-8 max-w-md mx-auto">
+          <span className="text-5xl block mb-4">🔒</span>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+          <p className="text-gray-600 mb-6">
+            You don&apos;t have access to view this party. Ask the party owner to invite you via email or share an invite link.
+          </p>
+          <Link
+            href="/"
+            className="inline-block bg-green-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-800 transition"
+          >
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const userHasPicks = userHasPicksForPrompt;
   const isLocked = party.status !== "picking";
   const picksRevealed = isLocked;

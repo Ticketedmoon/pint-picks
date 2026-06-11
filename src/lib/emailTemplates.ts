@@ -56,15 +56,15 @@ export function buildInviteEmail(params: {
 }): { subject: string; html: string } {
   const { invitedBy, partyName, joinUrl, inviteCode } = params;
   return {
-    subject: `You're invited to join "${escapeHtml(partyName)}" on Golf Tourney Tracker!`,
+    subject: `You're invited to join "${escapeHtml(partyName)}" on PintPicks!`,
     html: emailWrapper("⛳", `
       <h1 style="color: #166534; font-size: 22px; text-align: center; margin-bottom: 8px;">
         You're Invited!
       </h1>
       <p style="color: #4b5563; text-align: center; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
         <strong>${escapeHtml(invitedBy)}</strong> has invited you to join
-        <strong>"${escapeHtml(partyName)}"</strong> on Golf Tourney Tracker.
-        Pick your golfers and compete on the leaderboard!
+        <strong>"${escapeHtml(partyName)}"</strong> on PintPicks.
+        Pick your players and compete on the leaderboard!
       </p>
       ${ctaButton(joinUrl, "Join the Party")}
       <div style="text-align: center; color: #9ca3af; font-size: 13px; margin-bottom: 8px;">

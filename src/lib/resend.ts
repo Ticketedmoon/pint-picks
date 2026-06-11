@@ -12,5 +12,5 @@ export function getResend(): Resend {
 
 /** Default "from" address for outgoing emails */
 export function getFromEmail(): string {
-  return process.env.RESEND_FROM_EMAIL || "Golf Tourney Tracker <onboarding@resend.dev>";
+  return process.env.RESEND_FROM_EMAIL || "PintPicks <onboarding@resend.dev>";
 }
