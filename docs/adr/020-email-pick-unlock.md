@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR-033](./033-remove-members-late-joiners.md)
 
 ## Context
 
