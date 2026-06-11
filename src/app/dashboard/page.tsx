@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPartiesForUser, getAllParties, deleteParty } from "@/lib/firestore";
 import { Navbar } from "@/components/Navbar";
@@ -418,7 +418,9 @@ export default function DashboardPage() {
   return (
     <ProtectedRoute>
       <Navbar />
-      <DashboardContent />
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

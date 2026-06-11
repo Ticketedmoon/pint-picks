@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Navbar } from "@/components/Navbar";
 
@@ -28,11 +28,6 @@ const SPORTS = [
 
 function SportsContent() {
   const { user } = useAuth();
-  const router = useRouter();
-
-  const handleSelect = (sportId: string) => {
-    router.push(`/dashboard?sport=${sportId}`);
-  };
 
   return (
     <div className="w-full px-6 py-8 sm:px-12 sm:py-12 lg:px-20">
@@ -50,9 +45,9 @@ function SportsContent() {
 
       <div className="mx-auto max-w-2xl grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
         {SPORTS.map((sport) => (
-          <button
+          <Link
             key={sport.id}
-            onClick={() => handleSelect(sport.id)}
+            href={`/dashboard?sport=${sport.id}`}
             className={`group relative overflow-hidden rounded-2xl border-2 border-gray-200 bg-white p-6 text-left transition-all ${sport.hoverColor} hover:shadow-lg sm:p-8`}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${sport.color} opacity-0 transition-opacity group-hover:opacity-5`} />
@@ -69,7 +64,7 @@ function SportsContent() {
               <span>View parties</span>
               <span className="ml-1 transition-transform group-hover:translate-x-1">→</span>
             </div>
-          </button>
+          </Link>
         ))}
       </div>
     </div>
