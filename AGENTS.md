@@ -44,7 +44,8 @@ This version has breaking changes - APIs, conventions, and file structure may al
 - ESPN data flows through server-side proxy routes (`/api/espn/*`) with shared edge caching.
 - Browser-level ESPN cache (3 min TTL) in `src/lib/espn.ts` for pages not yet migrated.
 - Firestore security rules in `firestore.rules`, deployed via `npx firebase deploy --only firestore:rules`.
-- ADRs document all decisions in `docs/adr/` (currently 001-028).
+- ADRs document all decisions in `docs/adr/` (currently 001-033).
+- Uses `firebase/firestore` client SDK only (no Admin SDK). Server-side gRPC is unreliable; prefer client-side Firestore calls.
 
 ## Skills
 
