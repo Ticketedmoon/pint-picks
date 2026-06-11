@@ -221,7 +221,7 @@ function PicksContent() {
         });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.error || "Failed to save picks");
+          setError(data.detail || data.error || "Failed to save picks");
           setSaving(false);
           return;
         }

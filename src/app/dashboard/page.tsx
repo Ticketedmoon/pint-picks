@@ -79,14 +79,18 @@ function PartyCard({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const needsTypedConfirm = party.status !== "picking";
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!confirmDelete) {
       setConfirmDelete(true);
+      setDeleteConfirmText("");
       return;
     }
+    if (needsTypedConfirm && deleteConfirmText !== "DELETE") return;
     setDeleting(true);
     await onDelete(party.id);
   };
@@ -95,6 +99,7 @@ function PartyCard({
     e.preventDefault();
     e.stopPropagation();
     setConfirmDelete(false);
+    setDeleteConfirmText("");
   };
 
   return (
@@ -121,19 +126,48 @@ function PartyCard({
             {isCreator && (
               confirmDelete ? (
                 <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {deleting ? "..." : "Confirm"}
-                  </button>
-                  <button
-                    onClick={handleCancelDelete}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
+                  {needsTypedConfirm ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        onClick={(e) => e.preventDefault()}
+                        placeholder="Type DELETE"
+                        className="w-24 rounded-md border border-red-300 px-2 py-1 text-xs text-red-900 placeholder:text-red-300 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting || deleteConfirmText !== "DELETE"}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deleting ? "..." : "Delete"}
+                      </button>
+                      <button
+                        onClick={handleCancelDelete}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? "..." : "Confirm"}
+                      </button>
+                      <button
+                        onClick={handleCancelDelete}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <button

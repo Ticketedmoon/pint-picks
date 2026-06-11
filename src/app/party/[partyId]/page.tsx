@@ -52,6 +52,7 @@ function PartyContent() {
   const [inviteResult, setInviteResult] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [tournamentCountdown, setTournamentCountdown] = useState("");
@@ -966,26 +967,41 @@ function PartyContent() {
           <>
             {!showDeleteConfirm ? (
               <button
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(""); }}
                 className="text-sm text-red-400 hover:text-red-600 transition-colors self-start"
               >
                 🗑️ Delete this party
               </button>
             ) : (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <p className="text-sm font-medium text-red-800 mb-3">
+                <p className="text-sm font-medium text-red-800 mb-2">
                   Are you sure? This will permanently delete the party, all picks, and all invites.
                 </p>
+                {party.status !== "picking" && (
+                  <div className="mb-3">
+                    <p className="text-xs text-red-600 mb-1.5">
+                      This tournament is in progress. Type <span className="font-mono font-bold">DELETE</span> to confirm.
+                    </p>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="Type DELETE"
+                      className="w-full max-w-[200px] rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-900 placeholder:text-red-300 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      autoFocus
+                    />
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={handleDeleteParty}
-                    disabled={deleting}
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                    disabled={deleting || (party.status !== "picking" && deleteConfirmText !== "DELETE")}
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {deleting ? "Deleting..." : "Yes, delete permanently"}
                   </button>
                   <button
-                    onClick={() => setShowDeleteConfirm(false)}
+                    onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
                     className="bg-white border border-gray-300 text-gray-700 text-sm font-medium py-2 px-4 rounded-lg transition-colors hover:bg-gray-50"
                   >
                     Cancel

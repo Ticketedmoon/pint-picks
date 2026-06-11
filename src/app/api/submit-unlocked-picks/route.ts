@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
-      { error: "Failed to save picks" },
+      { error: "Failed to save picks", detail: message },
       { status: 500 }
     );
   }
