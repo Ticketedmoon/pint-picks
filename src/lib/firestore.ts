@@ -161,13 +161,17 @@ export async function getUserEmail(uid: string): Promise<string | null> {
 }
 
 export async function deleteParty(partyId: string): Promise<void> {
-  // Delete subcollections (picks, invites) first
+  // Delete subcollections (picks, invites, pickUnlocks) first
   const picksSnap = await getDocs(collection(db(), "parties", partyId, "picks"));
   for (const d of picksSnap.docs) {
     await deleteDoc(d.ref);
   }
   const invitesSnap = await getDocs(collection(db(), "parties", partyId, "invites"));
   for (const d of invitesSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+  const unlocksSnap = await getDocs(collection(db(), "parties", partyId, "pickUnlocks"));
+  for (const d of unlocksSnap.docs) {
     await deleteDoc(d.ref);
   }
   // Delete the party document

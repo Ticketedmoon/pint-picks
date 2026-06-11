@@ -235,6 +235,6 @@ describe("POST /api/submit-unlocked-picks", () => {
     const req = makeRequest({ partyId: PARTY_ID, callerUid: TARGET_UID, unlockToken: UNLOCK_TOKEN, picks: completePicks });
     const res = await POST(req as any);
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "Failed to save picks" });
+    expect(await res.json()).toEqual({ error: "Failed to save picks", detail: "Firestore batch failed" });
   });
 });

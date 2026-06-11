@@ -73,10 +73,13 @@ This guides the owner through the process without requiring documentation.
 | `src/app/party/[partyId]/page.tsx` | Added `handleRemoveMember`, `confirmRemoveMember`, confirmation modal, late joiner banner, client-side `handleSendUnlock` replacing API call |
 | `src/components/party/LeaderboardCards.tsx` | Added `onRemoveMember`/`removingMember` props, remove button, updated unlock button label |
 | `src/components/party/LeaderboardTable.tsx` | Added `onRemoveMember`/`removingMember` props, remove button, updated unlock button label |
-| `src/app/api/generate-pick-unlock/route.ts` | Created then removed (superseded by client-side approach) |
-| `src/app/api/send-pick-unlock/route.ts` | Added detailed error logging (kept for backward compatibility) |
+| `src/app/party/[partyId]/picks/page.tsx` | Replaced server-side unlock save API call with client-side `savePicksWithUnlock` |
+| `src/lib/firestore.ts` | Added pickUnlocks cleanup to `deleteParty` |
+| `firestore.rules` | Added `allow delete` for creator on picks and pickUnlocks subcollections |
+| `src/app/party/[partyId]/page.tsx` | Added "type DELETE" confirmation for locked/complete parties |
+| `src/app/dashboard/page.tsx` | Added "type DELETE" confirmation for locked/complete parties on dashboard |
 
 ## Related
 
 - [ADR-006: Party System](./006-party-system.md)
-- [ADR-020: Email-Based Pick Unlock](./020-email-pick-unlock.md) (superseded for unlock generation, submit route still used)
+- [ADR-020: Pick Unlock](./020-email-pick-unlock.md) (fully superseded by client-side approach)

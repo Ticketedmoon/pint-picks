@@ -52,10 +52,11 @@ service cloud.firestore {
 
       // ─── Picks (subcollection of party) ───
       // Members can read all picks (needed for leaderboard).
-      // Users can only write their own picks.
+      // Users can write their own picks. Creator can delete any picks (for party deletion / member removal).
       match /picks/{uid} {
         allow read: if isSignedIn() && (isPartyMember(partyId) || isAdmin());
         allow write: if isSignedIn() && isOwner(uid) && isPartyMember(partyId);
+        allow delete: if isSignedIn() && isPartyCreator(partyId);
       }
 
       // ─── Pick Unlocks (subcollection of party) ───
@@ -66,7 +67,7 @@ service cloud.firestore {
         allow read: if isSignedIn() && isPartyMember(partyId);
         allow create: if isSignedIn() && isPartyCreator(partyId);
         allow update: if isSignedIn() && isPartyMember(partyId);
-        allow delete: if false;
+        allow delete: if isSignedIn() && isPartyCreator(partyId);
       }
 
       // ─── Invites (subcollection of party) ───

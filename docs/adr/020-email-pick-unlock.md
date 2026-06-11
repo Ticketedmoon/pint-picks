@@ -1,8 +1,8 @@
-# ADR 020: Email-Based Pick Unlock for Late Joiners
+# ADR 020: Pick Unlock for Late Joiners
 
 ## Status
 
-Partially superseded by [ADR-033](./033-remove-members-late-joiners.md)
+Superseded by [ADR-033](./033-remove-members-late-joiners.md)
 
 ## Context
 
@@ -15,20 +15,33 @@ and there was no audit trail showing the member agreed to the selections.
 
 ## Decision
 
-We replaced the "pick on behalf" approach with an **email-based unlock** system:
+~~We replaced the "pick on behalf" approach with an **email-based unlock** system~~ (see update below):
 
-1. **Owner triggers**: When the party is locked, the owner sees a "📧 Send unlock" button
+### Original approach (email-based, now removed)
+
+1. Owner clicks "Send unlock" button, which called a server-side API route to send an email via Resend
+2. Email contained a time-limited unlock link
+3. Member clicked the link and submitted picks
+4. Picks were saved via a server-side API route that validated the token
+
+### Current approach (client-side, ADR-033)
+
+The email and server-side API routes were replaced with a fully client-side flow due to
+Firestore client SDK gRPC connectivity issues on both localhost and Vercel serverless:
+
+1. **Owner triggers**: When the party is locked, the owner sees a "🔓 Unlock picks" button
    next to members who haven't submitted picks.
 
-2. **Email with time-limited link**: Clicking the button sends the member an email (via Resend)
-   containing a unique unlock link. The link grants **1 hour** of access to submit picks.
+2. **Link copied to clipboard**: Clicking the button generates a token client-side via the
+   browser's Firestore connection (WebSocket, reliable), invalidates previous tokens, and
+   copies the unlock URL to the clipboard. Owner shares it via WhatsApp, text, etc.
 
 3. **Member submits their own picks**: The member clicks the link, sees a countdown timer,
-   and submits their own golfer selections. The owner cannot see or influence the picks.
+   and submits their own selections. The owner cannot see or influence the picks.
 
 4. **One-time use**: The unlock token is marked as used atomically when picks are saved
    (via a Firestore batch write). Previous unused tokens for the same member are invalidated
-   when a new one is sent.
+   when a new one is generated.
 
 ## Implementation Details
 
@@ -47,24 +60,26 @@ interface PickUnlock {
 }
 ```
 
-### API Routes
-
-- `POST /api/send-pick-unlock` - validates caller is party creator, generates token, sends email
-- `POST /api/submit-unlocked-picks` - validates token, saves picks + marks token used in one batch
-
 ### Security
 
 - Tokens are UUIDs (unguessable)
-- Token is validated server-side on save (not just on page load)
+- Token is validated client-side on page load (UID match, expiry, single-use)
+- `savePicksWithUnlock` atomically saves picks and marks token used in one batch write
 - Token must match the authenticated user's UID
 - Token expires after 1 hour and is single-use
-- Previous tokens are invalidated when a new one is sent
-- Base URL for email links comes from `NEXT_PUBLIC_APP_URL` env var (not request Origin)
+- Previous tokens are invalidated when a new one is generated
+- Firestore security rules restrict picks writes to members, pickUnlock creation to creator
+
+### Firestore Rules
+
+- Creator can delete picks and pickUnlocks (needed for party deletion and member removal)
+- `allow delete: if isSignedIn() && isPartyCreator(partyId)` on both subcollections
 
 ## Consequences
 
 - **Positive**: Owner controls access timing but cannot influence pick selections
 - **Positive**: Full audit trail via Firestore unlock documents
 - **Positive**: Member retains agency over their own picks
-- **Negative**: Requires the member to have email access and act within 1 hour
-- **Negative**: Depends on Resend email delivery reliability
+- **Positive**: No dependency on email delivery (Resend) or server-side Firestore gRPC
+- **Positive**: Owner can share link via any channel (WhatsApp, text, in person, etc.)
+- **Negative**: Owner must manually share the link (not automated)
