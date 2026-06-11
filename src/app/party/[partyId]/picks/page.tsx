@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { getParty, savePicks, getPicks, getPickUnlock } from "@/lib/firestore";
+import { getParty, savePicks, savePicksWithUnlock, getPicks, getPickUnlock } from "@/lib/firestore";
 import { fetchDynamicGroups } from "@/lib/sports/golf/espn";
 import { syncPartyStatus } from "@/lib/partySync";
 import { GROUP_LABELS } from "@/lib/sports/golf/playerGroups";
@@ -213,18 +213,8 @@ function PicksContent() {
     setSuccess("");
     try {
       if (isUnlocked && unlockToken) {
-        // Use server-side API for unlock-based saves (validates token + saves atomically)
-        const res = await fetch("/api/submit-unlocked-picks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ partyId, callerUid: user.uid, unlockToken, picks }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.detail || data.error || "Failed to save picks");
-          setSaving(false);
-          return;
-        }
+        // Save picks + mark token used atomically via client-side Firestore
+        await savePicksWithUnlock(partyId, user.uid, picks, unlockToken);
       } else {
         // Normal save: re-check party status right before saving (prevents stale page saves)
         const freshParty = await getParty(partyId);
