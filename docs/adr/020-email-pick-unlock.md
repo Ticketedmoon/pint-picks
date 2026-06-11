@@ -35,6 +35,8 @@ Firestore client SDK gRPC connectivity issues on both localhost and Vercel serve
 2. **Link copied to clipboard**: Clicking the button generates a token client-side via the
    browser's Firestore connection (WebSocket, reliable), invalidates previous tokens, and
    copies the unlock URL to the clipboard. Owner shares it via WhatsApp, text, etc.
+   **Self-unlock**: If the creator unlocks for themselves, they are navigated directly to
+   the picks page instead of copying a link.
 
 3. **Member submits their own picks**: The member clicks the link, sees a countdown timer,
    and submits their own selections. The owner cannot see or influence the picks.
@@ -64,7 +66,7 @@ interface PickUnlock {
 
 - Tokens are UUIDs (unguessable)
 - Token is validated client-side on page load (UID match, expiry, single-use)
-- `savePicksWithUnlock` atomically saves picks and marks token used in one batch write
+- `savePicksWithUnlock` validates the token (existence, UID match, expiry, single-use) before the batch write
 - Token must match the authenticated user's UID
 - Token expires after 1 hour and is single-use
 - Previous tokens are invalidated when a new one is generated

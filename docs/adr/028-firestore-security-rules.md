@@ -25,13 +25,13 @@ principle of least privilege:
 | Collection | Read | Write | Delete |
 |-----------|------|-------|--------|
 | `users/{uid}` | Any authenticated user | Own profile only | Never |
-| `parties/{partyId}` | Any authenticated user | Members only | Creator only |
-| `parties/{partyId}/picks/{uid}` | Party members | Own picks only | Own picks only |
-| `parties/{partyId}/pickUnlocks/{token}` | Party members | Creator creates, members update | Never |
+| `parties/{partyId}` | Any authenticated user | Creator: any field. Members: leave only (remove self from memberUids). Non-members: join by code (add self to memberUids). | Creator only |
+| `parties/{partyId}/picks/{uid}` | Own picks always. Others' picks only when party is locked/complete. | Own picks (while member) | Creator only |
+| `parties/{partyId}/pickUnlocks/{token}` | Party members | Creator creates, members update | Creator only |
 | `parties/{partyId}/invites/{email}` | Party members | Creator only | Creator only |
-| `analytics/{eventId}` | Authenticated | Create only | Never |
-| `analytics_last_visit/{uid}` | Authenticated | Own record only | Own record only |
-| `analytics_compacted/{partyId}` | Authenticated | Create only | Never |
+| `analytics_general/{uid}` | Admin only | Any authenticated user | Never |
+| `analytics_tournament/{docId}` | Admin only | Any authenticated user | Never |
+| `major_notifications/{eventId}` | Authenticated | Create only | Never |
 
 ### Helper functions
 - `isSignedIn()`: checks `request.auth != null`
