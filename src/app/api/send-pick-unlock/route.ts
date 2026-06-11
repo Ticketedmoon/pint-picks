@@ -75,9 +75,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sentTo: targetEmail });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[send-pick-unlock] ERROR:", error);
     logger.error({ route, method: "POST", status: 500, durationMs: Date.now() - start, error: message });
     return NextResponse.json(
-      { error: "Failed to send unlock email" },
+      { error: "Failed to send unlock email", detail: message },
       { status: 500 }
     );
   }

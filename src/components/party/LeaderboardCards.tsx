@@ -69,7 +69,7 @@ export function LeaderboardCards({
                       disabled={unlockSending[entry.uid]}
                       className="inline-flex items-center rounded-md bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-200 disabled:opacity-50"
                     >
-                      {unlockSending[entry.uid] ? "Sending..." : "📧 Send unlock"}
+                      {unlockSending[entry.uid] ? "Generating..." : "🔓 Unlock picks"}
                     </button>
                     {unlockResult[entry.uid] && <span className="text-[10px]">{unlockResult[entry.uid]}</span>}
                   </div>

@@ -20,7 +20,7 @@ import {
   INVITE_RESULT_MS,
 } from "@/lib/constants";
 import { formatScoreToPar } from "@/lib/sports/golf/espn";
-import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty, updatePartyName } from "@/lib/firestore";
+import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty, updatePartyName, hasIncompleteOrNoPicks, getPicks, invalidatePreviousUnlocks, createPickUnlock } from "@/lib/firestore";
 import { buildLeaderboardEntries } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
@@ -415,19 +415,26 @@ function PartyContent() {
     setUnlockSending((prev) => ({ ...prev, [targetUid]: true }));
     setUnlockResult((prev) => ({ ...prev, [targetUid]: "" }));
     try {
-      const res = await fetch("/api/send-pick-unlock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partyId: party.id, callerUid: user.uid, targetUid }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUnlockResult((prev) => ({ ...prev, [targetUid]: `✅ Unlock email sent to ${data.sentTo}` }));
-      } else {
-        setUnlockResult((prev) => ({ ...prev, [targetUid]: `❌ ${data.error}` }));
+      // Validate the member has incomplete or no picks
+      const targetPicks = await getPicks(party.id, targetUid);
+      if (!hasIncompleteOrNoPicks(targetPicks)) {
+        setUnlockResult((prev) => ({ ...prev, [targetUid]: "❌ This member already has complete picks" }));
+        setUnlockSending((prev) => ({ ...prev, [targetUid]: false }));
+        return;
       }
+
+      // Invalidate previous tokens and generate a new one
+      await invalidatePreviousUnlocks(party.id, targetUid);
+      const token = crypto.randomUUID();
+      await createPickUnlock(party.id, token, targetUid, user.uid);
+
+      // Build and copy the unlock URL
+      const baseUrl = window.location.origin;
+      const unlockUrl = `${baseUrl}/party/${party.id}/picks?unlock=${token}`;
+      await navigator.clipboard.writeText(unlockUrl);
+      setUnlockResult((prev) => ({ ...prev, [targetUid]: "✅ Unlock link copied to clipboard! Share it with the member." }));
     } catch {
-      setUnlockResult((prev) => ({ ...prev, [targetUid]: "❌ Failed to send unlock email" }));
+      setUnlockResult((prev) => ({ ...prev, [targetUid]: "❌ Failed to generate unlock link" }));
     }
     setUnlockSending((prev) => ({ ...prev, [targetUid]: false }));
   };
@@ -693,7 +700,7 @@ function PartyContent() {
               <p className="font-medium mb-1">⏰ The tournament has started</p>
               <p>
                 You can still invite someone to join late. Once they join using the link or code below,
-                use the &quot;📧 Send unlock&quot; button next to their name on the leaderboard so they can submit picks.
+                use the &quot;🔓 Unlock picks&quot; button next to their name on the leaderboard. This copies a link you can share with them so they can submit picks.
               </p>
             </div>
           )}
