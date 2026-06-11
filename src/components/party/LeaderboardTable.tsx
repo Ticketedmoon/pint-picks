@@ -14,6 +14,8 @@ interface LeaderboardTableProps {
   unlockSending: Record<string, boolean>;
   unlockResult: Record<string, string>;
   mobileView: "cards" | "table";
+  onRemoveMember?: (targetUid: string) => void;
+  removingMember?: Record<string, boolean>;
 }
 
 export function LeaderboardTable({
@@ -25,6 +27,8 @@ export function LeaderboardTable({
   unlockSending,
   unlockResult,
   mobileView,
+  onRemoveMember,
+  removingMember,
 }: LeaderboardTableProps) {
   const payouts = party.buyIn > 0 ? calculatePayouts(party) : null;
   const sport = getSportConfig(party.sportType);
@@ -125,6 +129,17 @@ export function LeaderboardTable({
                           {unlockResult[entry.uid] && (
                             <span className="whitespace-nowrap text-[10px]">{unlockResult[entry.uid]}</span>
                           )}
+                        </div>
+                      )}
+                      {!isOwnRow && !hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && onRemoveMember && (
+                        <div className="ml-1 hidden items-center gap-1 sm:inline-flex">
+                          <button
+                            onClick={() => onRemoveMember(entry.uid)}
+                            disabled={removingMember?.[entry.uid]}
+                            className="inline-flex shrink-0 items-center rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {removingMember?.[entry.uid] ? "Removing..." : "✕ Remove"}
+                          </button>
                         </div>
                       )}
                     </div>

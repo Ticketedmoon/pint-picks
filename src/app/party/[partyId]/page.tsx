@@ -68,6 +68,8 @@ function PartyContent() {
   const [editingName, setEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [removingMember, setRemovingMember] = useState<Record<string, boolean>>({});
+  const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
 
   // Show email send results from create flow
   useEffect(() => {
@@ -307,6 +309,29 @@ function PartyContent() {
       setError("Failed to rename party");
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handleRemoveMember = (targetUid: string) => {
+    // Only allow removing members who haven't submitted picks, after the party is locked
+    setConfirmRemoveUid(targetUid);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!party || !partyId || !confirmRemoveUid) return;
+    setRemovingMember((prev) => ({ ...prev, [confirmRemoveUid]: true }));
+    try {
+      await leaveParty(partyId, confirmRemoveUid);
+      setParty({
+        ...party,
+        memberUids: party.memberUids.filter((uid) => uid !== confirmRemoveUid),
+      });
+      setLeaderboard((prev) => prev.filter((e) => e.uid !== confirmRemoveUid));
+    } catch {
+      setError("Failed to remove member");
+    } finally {
+      setRemovingMember((prev) => ({ ...prev, [confirmRemoveUid]: false }));
+      setConfirmRemoveUid(null);
     }
   };
 
@@ -587,7 +612,7 @@ function PartyContent() {
               onClick={() => setShowInviteForm(!showInviteForm)}
               className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
             >
-              {showInviteForm ? "✕ Close" : "➕ Invite More"}
+              {showInviteForm ? "✕ Close" : party.status === "locked" && user?.uid === party.createdBy ? "➕ Add Late Joiner" : "➕ Invite More"}
             </button>
           )}
           {!isGuestViewer && !isLocked && !userHasPicks && (
@@ -659,7 +684,19 @@ function PartyContent() {
 
       {showInviteForm && party && (
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">Invite more people</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3">
+            {party.status === "locked" ? "Add a late joiner" : "Invite more people"}
+          </h3>
+
+          {party.status === "locked" && user?.uid === party.createdBy && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <p className="font-medium mb-1">⏰ The tournament has started</p>
+              <p>
+                You can still invite someone to join late. Once they join using the link or code below,
+                use the &quot;📧 Send unlock&quot; button next to their name on the leaderboard so they can submit picks.
+              </p>
+            </div>
+          )}
 
           {/* Shareable link - primary method */}
           <div className="mb-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
@@ -843,6 +880,8 @@ function PartyContent() {
             onSendUnlock={handleSendUnlock}
             unlockSending={unlockSending}
             unlockResult={unlockResult}
+            onRemoveMember={user?.uid === party.createdBy && party.status === "locked" ? handleRemoveMember : undefined}
+            removingMember={removingMember}
           />
         </div>
 
@@ -856,6 +895,8 @@ function PartyContent() {
           unlockSending={unlockSending}
           unlockResult={unlockResult}
           mobileView={mobileView}
+          onRemoveMember={user?.uid === party.createdBy && party.status === "locked" ? handleRemoveMember : undefined}
+          removingMember={removingMember}
         />
         </>
       )}
@@ -948,6 +989,32 @@ function PartyContent() {
           </>
         )}
       </div>
+      )}
+
+      {confirmRemoveUid && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-label="Confirm remove member">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <p className="text-sm font-medium text-gray-800 mb-1">Remove this member?</p>
+            <p className="text-xs text-gray-500 mb-4">
+              {leaderboard.find((e) => e.uid === confirmRemoveUid)?.userName || "This member"} hasn&apos;t submitted picks. They&apos;ll be removed from the party and their picks (if any) will be deleted. They can rejoin with the invite code.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmRemoveMember}
+                disabled={removingMember[confirmRemoveUid]}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {removingMember[confirmRemoveUid] ? "Removing..." : "Remove"}
+              </button>
+              <button
+                onClick={() => setConfirmRemoveUid(null)}
+                className="flex-1 bg-white border border-gray-300 text-gray-700 text-sm font-medium py-2 px-4 rounded-lg transition-colors hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showTournamentLeaderboard && (

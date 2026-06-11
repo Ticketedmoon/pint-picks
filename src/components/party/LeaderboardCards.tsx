@@ -13,6 +13,8 @@ interface LeaderboardCardsProps {
   onSendUnlock: (targetUid: string) => void;
   unlockSending: Record<string, boolean>;
   unlockResult: Record<string, string>;
+  onRemoveMember?: (targetUid: string) => void;
+  removingMember?: Record<string, boolean>;
 }
 
 export function LeaderboardCards({
@@ -23,6 +25,8 @@ export function LeaderboardCards({
   onSendUnlock,
   unlockSending,
   unlockResult,
+  onRemoveMember,
+  removingMember,
 }: LeaderboardCardsProps) {
   const payouts = party.buyIn > 0 ? calculatePayouts(party) : null;
   const sport = getSportConfig(party.sportType);
@@ -68,6 +72,17 @@ export function LeaderboardCards({
                       {unlockSending[entry.uid] ? "Sending..." : "📧 Send unlock"}
                     </button>
                     {unlockResult[entry.uid] && <span className="text-[10px]">{unlockResult[entry.uid]}</span>}
+                  </div>
+                )}
+                {!isOwnRow && !hasSubmitted && user?.uid === party.createdBy && party.status === "locked" && onRemoveMember && (
+                  <div className="ml-2">
+                    <button
+                      onClick={() => onRemoveMember(entry.uid)}
+                      disabled={removingMember?.[entry.uid]}
+                      className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {removingMember?.[entry.uid] ? "Removing..." : "✕ Remove"}
+                    </button>
                   </div>
                 )}
               </div>
