@@ -48,9 +48,20 @@ export async function createParty(
   payoutSplit?: Party["payoutSplit"],
   tiebreakerRules?: Party["tiebreakerRules"],
 ): Promise<Party> {
+  // Input validation
+  const trimmedName = name.trim();
+  if (!trimmedName || trimmedName.length > 60) {
+    throw new Error("Party name must be 1-60 characters");
+  }
+  if (!createdBy) throw new Error("Missing createdBy");
+  if (!tournamentId) throw new Error("Missing tournamentId");
+  if (typeof buyIn !== "number" || buyIn < 0 || buyIn > 10000) {
+    throw new Error("Buy-in must be between 0 and 10,000");
+  }
+
   const partyRef = doc(collection(db(), "parties"));
   const party: Omit<Party, "id"> = {
-    name,
+    name: trimmedName,
     createdBy,
     inviteCode: generateInviteCode(),
     tournamentId,
@@ -77,7 +88,13 @@ export async function createParty(
 export async function getParty(partyId: string): Promise<Party | null> {
   const snap = await getDoc(doc(db(), "parties", partyId));
   if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Party;
+  const data = snap.data();
+  // Runtime validation for critical fields
+  if (!data.createdBy || !data.inviteCode || !Array.isArray(data.memberUids)) {
+    console.warn("Party document missing required fields:", partyId);
+    return null;
+  }
+  return { id: snap.id, ...data } as Party;
 }
 
 export async function getPartiesForUser(uid: string): Promise<Party[]> {
@@ -109,15 +126,16 @@ export async function joinPartyByCode(code: string, uid: string): Promise<Party 
 }
 
 export async function leaveParty(partyId: string, uid: string): Promise<void> {
-  await updateDoc(doc(db(), "parties", partyId), {
-    memberUids: arrayRemove(uid),
-  });
-  // Delete the member's picks if any exist
+  // Delete picks first (while user is still a member, for rules compliance)
   const picksRef = doc(db(), "parties", partyId, "picks", uid);
   const picksSnap = await getDoc(picksRef);
   if (picksSnap.exists()) {
     await deleteDoc(picksRef);
   }
+  // Then remove from memberUids
+  await updateDoc(doc(db(), "parties", partyId), {
+    memberUids: arrayRemove(uid),
+  });
 }
 
 export async function updatePartyStatus(
@@ -161,21 +179,19 @@ export async function getUserEmail(uid: string): Promise<string | null> {
 }
 
 export async function deleteParty(partyId: string): Promise<void> {
-  // Delete subcollections (picks, invites, pickUnlocks) first
-  const picksSnap = await getDocs(collection(db(), "parties", partyId, "picks"));
-  for (const d of picksSnap.docs) {
-    await deleteDoc(d.ref);
-  }
-  const invitesSnap = await getDocs(collection(db(), "parties", partyId, "invites"));
-  for (const d of invitesSnap.docs) {
-    await deleteDoc(d.ref);
-  }
-  const unlocksSnap = await getDocs(collection(db(), "parties", partyId, "pickUnlocks"));
-  for (const d of unlocksSnap.docs) {
-    await deleteDoc(d.ref);
-  }
-  // Delete the party document
-  await deleteDoc(doc(db(), "parties", partyId));
+  // Collect all subcollection docs, then delete everything in a batch
+  const [picksSnap, invitesSnap, unlocksSnap] = await Promise.all([
+    getDocs(collection(db(), "parties", partyId, "picks")),
+    getDocs(collection(db(), "parties", partyId, "invites")),
+    getDocs(collection(db(), "parties", partyId, "pickUnlocks")),
+  ]);
+
+  const batch = writeBatch(db());
+  for (const d of picksSnap.docs) batch.delete(d.ref);
+  for (const d of invitesSnap.docs) batch.delete(d.ref);
+  for (const d of unlocksSnap.docs) batch.delete(d.ref);
+  batch.delete(doc(db(), "parties", partyId));
+  await batch.commit();
 }
 
 // --- Picks ---
@@ -257,6 +273,22 @@ export async function savePicksWithUnlock(
   picks: Picks,
   unlockToken: string
 ): Promise<void> {
+  // Validate token before writing to prevent race conditions / double-use
+  const tokenDoc = await getDoc(doc(db(), "parties", partyId, "pickUnlocks", unlockToken));
+  if (!tokenDoc.exists()) {
+    throw new Error("Invalid unlock token");
+  }
+  const tokenData = tokenDoc.data() as PickUnlock;
+  if (tokenData.uid !== uid) {
+    throw new Error("This unlock token is not for your account");
+  }
+  if (tokenData.used) {
+    throw new Error("This unlock link has already been used");
+  }
+  if (new Date(tokenData.expiresAt).getTime() < Date.now()) {
+    throw new Error("This unlock link has expired");
+  }
+
   const batch = writeBatch(db());
   batch.set(doc(db(), "parties", partyId, "picks", uid), {
     ...picks,
@@ -283,19 +315,6 @@ export async function addInvites(partyId: string, emails: string[], invitedBy: s
   }
 }
 
-export async function getPendingInvitesForEmail(email: string): Promise<{ partyId: string; partyName: string }[]> {
-  // Query all parties for pending invites matching this email
-  // Note: This requires checking each party's invites subcollection.
-  // For MVP, we use collectionGroup queries.
-  const q = query(
-    collection(db(), "parties"),
-    where("memberUids", "not-in", [[]])  // get all parties
-  );
-  // TODO: For scale, use collectionGroup query on "invites" collection
-  // For now, this is handled at the component level by checking invites on known parties
-  return [];
-}
-
 // --- User Info ---
 
 export async function getUserDisplayName(uid: string): Promise<string> {
@@ -308,9 +327,11 @@ export async function getUsersInfo(
   uids: string[]
 ): Promise<Record<string, { displayName: string; photoURL?: string }>> {
   const result: Record<string, { displayName: string; photoURL?: string }> = {};
-  // Firestore doesn't support "in" queries > 30 items, batch if needed
-  for (const uid of uids) {
-    const snap = await getDoc(doc(db(), "users", uid));
+  // Fetch all user docs in parallel
+  const snaps = await Promise.all(
+    uids.map((uid) => getDoc(doc(db(), "users", uid)).then((snap) => ({ uid, snap })))
+  );
+  for (const { uid, snap } of snaps) {
     if (snap.exists()) {
       const data = snap.data();
       result[uid] = {

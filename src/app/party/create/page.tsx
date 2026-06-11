@@ -630,7 +630,7 @@ function TiebreakerSection({
   };
 
   const addRule = (id: string) => {
-    const rule = FOOTBALL_TIEBREAKER_OPTIONS.find((r) => r.id === id);
+    const rule = allOptions.find((r) => r.id === id);
     if (rule) onChange([...rules, rule]);
   };
 
@@ -1035,9 +1035,13 @@ function CreatePartyContent() {
       if (emailList.length > 0) {
         await addInvites(party.id, emailList, user.uid);
         try {
+          const idToken = await user.getIdToken();
           const emailRes = await fetch("/api/invite", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${idToken}`,
+            },
             body: JSON.stringify({
               emails: emailList,
               partyName: data.name,

@@ -123,10 +123,10 @@ describe("calculatePayouts", () => {
     expect(result.totalPot).toBe(150);
     expect(result.first).toBeGreaterThan(result.second);
     expect(result.second).toBeGreaterThan(result.third);
-    // 55/30/15: third=23, second=45, first=82
-    expect(result.third).toBe(23);
+    // 55/30/15 with floor: third=22, second=45, first=83 (gets remainder)
+    expect(result.third).toBe(22);
     expect(result.second).toBe(45);
-    expect(result.first).toBe(82);
+    expect(result.first).toBe(83);
   });
 
   it("handles large buy-in with many members", () => {

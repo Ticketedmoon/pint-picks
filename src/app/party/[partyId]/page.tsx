@@ -164,8 +164,8 @@ function PartyContent() {
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          // Trigger refresh
-          handleRefresh();
+          // Only trigger refresh if not already in progress
+          if (!refreshing) handleRefresh();
           return AUTO_REFRESH_SECONDS;
         }
         return prev - 1;
@@ -173,7 +173,7 @@ function PartyContent() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [party, loading]);
+  }, [party, loading, refreshing]);
 
   // First tee-off countdown - fetches actual tee time from ESPN, falls back to tournament start date
   useEffect(() => {
@@ -248,9 +248,13 @@ function PartyContent() {
       await addInvites(party.id, emailList, user.uid);
 
       // Send emails
+      const idToken = await user.getIdToken();
       const emailRes = await fetch("/api/invite", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           emails: emailList,
           partyName: party.name,
@@ -259,7 +263,11 @@ function PartyContent() {
         }),
       });
       const emailData = await emailRes.json();
-      setInviteResult(`✓ ${emailData.sent || emailList.length} invite(s) sent!`);
+      if (!emailRes.ok) {
+        setInviteResult("Failed to send invites, but the invite code still works.");
+      } else {
+        setInviteResult(`✓ ${emailData.sent} invite(s) sent!`);
+      }
       setInviteEmails("");
       setTimeout(() => {
         setInviteResult(null);

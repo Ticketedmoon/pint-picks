@@ -92,7 +92,13 @@ function PartyCard({
     }
     if (needsTypedConfirm && deleteConfirmText !== "DELETE") return;
     setDeleting(true);
-    await onDelete(party.id);
+    try {
+      await onDelete(party.id);
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
+      setDeleteConfirmText("");
+    }
   };
 
   const handleCancelDelete = (e: React.MouseEvent) => {
@@ -206,6 +212,10 @@ function DashboardContent() {
       const filtered = p.filter((party) => (party.sportType || "golf") === sport);
       filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setParties(filtered);
+    }).catch(() => {
+      // Fetch failed, show empty state rather than infinite skeleton
+      setParties([]);
+    }).finally(() => {
       setLoading(false);
     });
   }, [user, sport, godMode]);
@@ -215,7 +225,7 @@ function DashboardContent() {
       await deleteParty(partyId);
       setParties((prev) => prev.filter((p) => p.id !== partyId));
     } catch {
-      // Silently fail - user can retry
+      alert("Failed to delete party. Please try again.");
     }
   };
 

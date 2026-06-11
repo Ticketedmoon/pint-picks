@@ -307,14 +307,14 @@ describe("applyGolfTiebreakers", () => {
       { id: "most_cuts_made", label: "", description: "" },
     ];
     const a = makeGolfEntry("a", 10, [
-      { playerId: "p1", status: "finished" },
+      { playerId: "p1", status: "finished", position: "T10" },
       { playerId: "p2", status: "cut" },
-      { playerId: "p3", status: "finished" },
+      { playerId: "p3", status: "finished", position: "T20" },
     ]);
     const b = makeGolfEntry("b", 10, [
-      { playerId: "p1", status: "finished" },
-      { playerId: "p2", status: "finished" },
-      { playerId: "p3", status: "finished" },
+      { playerId: "p1", status: "finished", position: "T5" },
+      { playerId: "p2", status: "finished", position: "T15" },
+      { playerId: "p3", status: "finished", position: "T25" },
     ]);
     const result = applyGolfTiebreakers([a, b], rules);
     expect(result[0].uid).toBe("b"); // b has 3 cuts made, a has 2
@@ -385,12 +385,12 @@ describe("applyGolfTiebreakers", () => {
       { id: "most_cuts_made", label: "", description: "" },
     ];
     const a = makeGolfEntry("a", -5, [
-      { playerId: "", status: "finished" }, // should be skipped
-      { playerId: "p1", status: "finished" },
+      { playerId: "", status: "finished", position: "T5" }, // should be skipped (no playerId)
+      { playerId: "p1", status: "finished", position: "T10" },
     ]);
     const b = makeGolfEntry("b", -5, [
-      { playerId: "p1", status: "finished" },
-      { playerId: "p2", status: "finished" },
+      { playerId: "p1", status: "finished", position: "T5" },
+      { playerId: "p2", status: "finished", position: "T15" },
     ]);
     const result = applyGolfTiebreakers([a, b], rules);
     expect(result[0].uid).toBe("b"); // a=1 cut made (skipped empty), b=2

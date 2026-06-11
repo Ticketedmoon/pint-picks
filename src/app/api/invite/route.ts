@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResend, getFromEmail } from "@/lib/resend";
 import { buildInviteEmail } from "@/lib/emailTemplates";
+import { getAuthenticatedUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   const start = Date.now();
   const route = "/api/invite";
   try {
+    // Verify Firebase auth token
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      logger.warn({ route, method: "POST", status: 401, error: "Unauthorized" });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const resend = getResend();
     const { emails, partyName, inviteCode, invitedBy } = await request.json();
 

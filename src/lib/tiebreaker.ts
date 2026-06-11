@@ -196,7 +196,8 @@ function getGolfPickStats(entry: LeaderboardEntry): GolfPickStats {
 
     if (pick.status === "cut" || pick.status === "wd" || pick.status === "dq") {
       penalties++;
-    } else {
+    } else if (pos !== Infinity) {
+      // Only count as "made cut" if they have a numeric finishing position
       cutsMade++;
     }
 

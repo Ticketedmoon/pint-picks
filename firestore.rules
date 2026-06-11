@@ -34,12 +34,22 @@ service cloud.firestore {
     match /parties/{partyId} {
       // Any signed-in user can read a party (needed for join-by-code lookup).
       // Any signed-in user can create a party.
-      // Only members can update (status sync, adding members via join).
+      // Creator can update any field. Members can only update memberUids (leave).
+      // Non-members can join by code (adding only their own UID to memberUids).
       // Only the creator can delete.
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
-        isPartyMember(partyId)
+        // Creator can update any field
+        isPartyCreator(partyId)
+        || (
+          // Members can only remove themselves from memberUids (leave party)
+          isPartyMember(partyId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+          && resource.data.memberUids.hasAll(request.resource.data.memberUids)
+          && request.resource.data.memberUids.size() == resource.data.memberUids.size() - 1
+          && !(request.auth.uid in request.resource.data.memberUids)
+        )
         || (
           // Allow join-by-code: non-member adding only their own UID to memberUids
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
@@ -51,10 +61,18 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isPartyCreator(partyId);
 
       // ─── Picks (subcollection of party) ───
-      // Members can read all picks (needed for leaderboard).
+      // Members can read their OWN picks anytime. Other members' picks only when locked/complete (prevents cheating).
       // Users can write their own picks. Creator can delete any picks (for party deletion / member removal).
       match /picks/{uid} {
-        allow read: if isSignedIn() && (isPartyMember(partyId) || isAdmin());
+        allow read: if isSignedIn() && (
+          isOwner(uid)
+          || isAdmin()
+          || (
+            isPartyMember(partyId)
+            && resource.data != null
+            && get(/databases/$(database)/documents/parties/$(partyId)).data.status in ['locked', 'complete']
+          )
+        );
         allow write: if isSignedIn() && isOwner(uid) && isPartyMember(partyId);
         allow delete: if isSignedIn() && isPartyCreator(partyId);
       }

@@ -16,7 +16,26 @@ function getCached<T>(key: string): T | null {
   return entry.data as T;
 }
 
+const MAX_CACHE_SIZE = 50;
+
 function setCache(key: string, data: unknown): void {
+  // Evict expired entries if cache is getting large
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const now = Date.now();
+    for (const [k, v] of cache) {
+      if (now > v.expiresAt) cache.delete(k);
+    }
+    // If still too large, drop oldest entries
+    if (cache.size >= MAX_CACHE_SIZE) {
+      const toDelete = cache.size - MAX_CACHE_SIZE + 1;
+      let deleted = 0;
+      for (const k of cache.keys()) {
+        if (deleted >= toDelete) break;
+        cache.delete(k);
+        deleted++;
+      }
+    }
+  }
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 

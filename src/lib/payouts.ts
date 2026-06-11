@@ -30,8 +30,8 @@ export type PayoutPresetKey = "winner-takes-more" | "balanced" | "winner-takes-m
  * Uses party.payoutSplit if set (custom percentages), otherwise falls back
  * to "winner-takes-more" defaults: 65/35 for 2-way, 55/30/15 for 3-way.
  *
- * All amounts are rounded to the nearest euro. Any rounding remainder
- * goes to 1st place so the pot always adds up exactly.
+ * All amounts use banker's rounding. Any remainder is distributed
+ * one unit at a time from highest place down so the pot always adds up exactly.
  */
 export function calculatePayouts(party: Party): Payouts {
   const pot = party.buyIn * party.memberUids.length;
@@ -42,13 +42,21 @@ export function calculatePayouts(party: Party): Payouts {
 
   if (party.thirdPlacePayout && party.secondPlacePayout) {
     const split = party.payoutSplit || { first: 55, second: 30, third: 15 };
-    third = Math.round(pot * split.third / 100);
-    second = Math.round(pot * split.second / 100);
-    first = pot - second - third;
+    first = Math.floor(pot * split.first / 100);
+    second = Math.floor(pot * split.second / 100);
+    third = Math.floor(pot * split.third / 100);
+    // Distribute remainder one unit at a time: 1st, 2nd, 3rd
+    let remainder = pot - first - second - third;
+    if (remainder > 0) { first++; remainder--; }
+    if (remainder > 0) { second++; remainder--; }
+    if (remainder > 0) { third++; }
   } else if (party.secondPlacePayout) {
     const split = party.payoutSplit || { first: 65, second: 35, third: 0 };
-    second = Math.round(pot * split.second / 100);
-    first = pot - second;
+    first = Math.floor(pot * split.first / 100);
+    second = Math.floor(pot * split.second / 100);
+    // Remainder goes to 1st
+    const remainder = pot - first - second;
+    first += remainder;
   } else {
     first = pot;
   }

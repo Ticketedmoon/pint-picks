@@ -16,7 +16,7 @@ const NOTIFICATION_COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
  *
  * Returns the updated party object.
  */
-export async function syncPartyStatus(party: Party): Promise<Party> {
+export async function syncPartyStatus(party: Party, authToken?: string): Promise<Party> {
   const sport = getSportConfig(party.sportType);
   const { status: tournamentStatus } = await sport.fetchTournamentStatus(party);
 
@@ -47,7 +47,7 @@ export async function syncPartyStatus(party: Party): Promise<Party> {
       Date.now() - new Date(party.lastInvalidNotifiedAt).getTime() > NOTIFICATION_COOLDOWN_MS;
 
     if (shouldNotify) {
-      await notifyInvalidPickMembers(party, validation.invalidPicks);
+      await notifyInvalidPickMembers(party, validation.invalidPicks, authToken);
       await updatePartyLastNotified(party.id);
     }
 
@@ -62,7 +62,8 @@ export async function syncPartyStatus(party: Party): Promise<Party> {
  */
 async function notifyInvalidPickMembers(
   party: Party,
-  invalidPicks: { uid: string; playerName: string; slot: string }[]
+  invalidPicks: { uid: string; playerName: string; slot: string }[],
+  authToken?: string,
 ): Promise<void> {
   // Group invalid picks by UID
   const byUid = new Map<string, string[]>();
@@ -90,12 +91,14 @@ async function notifyInvalidPickMembers(
 
   if (invalidMembers.length === 0) return;
 
-  // Fire-and-forget the email API call (server-side)
+  // Fire-and-forget the email API call
   try {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
     await fetch(`${baseUrl}/api/notify-invalid-picks`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         partyId: party.id,
         partyName: party.name,

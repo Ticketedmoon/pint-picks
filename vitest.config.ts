@@ -10,7 +10,7 @@ export default defineConfig({
       include: ["src/lib/**/*.ts"],
       exclude: [
         "src/lib/firebase.ts",
-        "src/lib/firestore.ts",
+        "src/lib/auth.ts",
         "src/lib/resend.ts",
         "src/lib/usePageView.ts",
         "src/lib/sports/types.ts",

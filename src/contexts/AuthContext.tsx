@@ -69,15 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const userRef = doc(getFirebaseDb(), "users", firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            displayName: firebaseUser.displayName,
-            email: firebaseUser.email,
-            photoURL: firebaseUser.photoURL,
-            createdAt: new Date().toISOString(),
-          });
+        try {
+          const userRef = doc(getFirebaseDb(), "users", firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              displayName: firebaseUser.displayName,
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        } catch {
+          // Firestore may be unreachable (offline, cold start). Auth still works.
+          console.warn("Failed to sync user profile to Firestore");
         }
       }
       setLoading(false);

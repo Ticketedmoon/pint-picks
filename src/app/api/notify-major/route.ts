@@ -22,14 +22,16 @@ export async function POST(request: NextRequest) {
   const start = Date.now();
   const route = "/api/notify-major";
 
-  // Simple auth check for cron/admin
+  // Auth check for cron/admin - reject if CRON_SECRET is not configured
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${cronSecret}`) {
-      logger.warn({ route, method: "POST", status: 401, error: "Unauthorized" });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!cronSecret) {
+    logger.error({ route, method: "POST", status: 500, error: "CRON_SECRET not configured" });
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${cronSecret}`) {
+    logger.warn({ route, method: "POST", status: 401, error: "Unauthorized" });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
