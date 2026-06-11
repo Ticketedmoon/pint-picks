@@ -29,7 +29,7 @@ export const FOOTBALL_LEAGUES: Record<string, FootballLeagueConfig> = {
     type: "tournament",
     teamType: "country",
     espnId: "606",
-    startDate: "2026-06-11T21:00:00Z", // Opening match: Mexico vs ?, June 11 2026
+    startDate: "2026-06-11T19:00:00Z", // Opening match: Mexico vs South Africa, June 11 2026
     endDate: "2026-07-19T20:00:00Z", // World Cup Final: July 19 2026
   },
   "eng.1": {
