@@ -351,6 +351,92 @@ describe("footballConfig", () => {
     expect(result.scores).toEqual([]);
   });
 
+  it("fetchScores fetches matches in weekly chunks across full tournament window", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+    vi.mocked(fetchFootballMatches).mockResolvedValue([]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, matchSummaries: [],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      leagueSlug: "fifa.world",
+      customGroups: { A: [{ id: "202", displayName: "Argentina" }], B: [], C: [], D: [] },
+    };
+    await footballConfig.fetchScores(party);
+
+    // fifa.world runs 2026-06-11 to 2026-07-19 (39 days), so we expect 6 weekly chunks
+    const calls = vi.mocked(fetchFootballMatches).mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(6);
+    // Every call should include a date range param (YYYYMMDD-YYYYMMDD)
+    for (const call of calls) {
+      expect(call[1]).toMatch(/^\d{8}-\d{8}$/);
+    }
+    // First chunk should start on tournament start date
+    expect(calls[0][1]).toMatch(/^20260611-/);
+    // Last chunk should end on or before tournament end date
+    const lastRange = calls[calls.length - 1][1] as string;
+    const lastEnd = lastRange.split("-")[1];
+    expect(parseInt(lastEnd)).toBeLessThanOrEqual(20260719);
+  });
+
+  it("fetchScores deduplicates matches returned by multiple chunks", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+
+    const sharedMatch = {
+      id: "match-1", date: "2026-06-12", name: "ARG vs BRA", shortName: "ARG vs BRA",
+      status: "post" as const, statusDetail: "FT",
+      homeTeam: { id: "202", displayName: "Argentina", abbreviation: "ARG", logo: "", score: 2, winner: true },
+      awayTeam: { id: "205", displayName: "Brazil", abbreviation: "BRA", logo: "", score: 0, winner: false },
+    };
+    // Return the same match from multiple chunks to simulate overlap
+    vi.mocked(fetchFootballMatches).mockResolvedValue([sharedMatch]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 3, matchesPlayed: 1, wins: 1, draws: 0, losses: 0,
+      matchSummaries: [{ opponent: "Brazil", opponentAbbr: "BRA", result: "W", teamScore: 2, opponentScore: 0 }],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      leagueSlug: "fifa.world",
+      customGroups: { A: [{ id: "202", displayName: "Argentina" }], B: [], C: [], D: [] },
+    };
+    const result = await footballConfig.fetchScores(party);
+
+    // calculateTeamMatchPoints should be called with a deduplicated array
+    // (even though the same match was returned by 6 chunks, it should appear only once)
+    const matchesArg = vi.mocked(calculateTeamMatchPoints).mock.calls[0][1];
+    const matchIds = matchesArg.map((m: { id: string }) => m.id);
+    const uniqueIds = new Set(matchIds);
+    expect(uniqueIds.size).toBe(matchIds.length);
+    // Score should reflect the single match, not duplicated
+    expect(result.scores[0].scoreToPar).toBe(3);
+  });
+
+  it("fetchScores falls back to undated request when league has no config", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+    vi.mocked(fetchFootballMatches).mockReset();
+    vi.mocked(fetchFootballMatches).mockResolvedValue([]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, matchSummaries: [],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      leagueSlug: "unknown.league",
+      customGroups: { A: [{ id: "202", displayName: "Argentina" }], B: [], C: [], D: [] },
+    };
+    await footballConfig.fetchScores(party);
+
+    // Should make a single call without a date range
+    const calls = vi.mocked(fetchFootballMatches).mock.calls;
+    expect(calls.length).toBe(1);
+    expect(calls[0][1]).toBeUndefined();
+  });
+
   it("fetchRoundInfo returns null", async () => {
     const result = await footballConfig.fetchRoundInfo(mockParty);
     expect(result).toBeNull();

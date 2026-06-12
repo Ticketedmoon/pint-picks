@@ -1,6 +1,64 @@
 import type { SportConfig, TournamentStatus } from "./types";
 import type { Party, PlayerScore } from "@/types";
 import { FOOTBALL_LEAGUES } from "@/lib/sports/football/leagues";
+import type { FootballLeagueConfig } from "@/lib/sports/football/leagues";
+import type { FootballMatch } from "@/lib/sports/football/types";
+
+const CHUNK_DAYS = 7;
+
+/** Format a Date as YYYYMMDD for ESPN's dates query param. */
+function fmtEspnDate(d: Date): string {
+  return d.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+/**
+ * Fetch all matches across the full tournament window, chunked into
+ * CHUNK_DAYS-day windows so ESPN doesn't truncate large responses.
+ * Results are deduplicated by match ID.
+ */
+async function fetchAllTournamentMatches(
+  leagueSlug: string,
+  leagueConfig: FootballLeagueConfig | undefined,
+  fetcher: (slug: string, dateRange?: string) => Promise<FootballMatch[]>,
+): Promise<FootballMatch[]> {
+  if (!leagueConfig?.startDate) {
+    // No config, fall back to a single undated request (today only)
+    return fetcher(leagueSlug);
+  }
+
+  const start = new Date(leagueConfig.startDate);
+  const end = leagueConfig.endDate ? new Date(leagueConfig.endDate) : new Date();
+
+  // Build weekly chunks: [start, start+7), [start+7, start+14), ...
+  const chunks: string[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setDate(chunkEnd.getDate() + CHUNK_DAYS - 1);
+    const clampedEnd = chunkEnd > end ? end : chunkEnd;
+    chunks.push(`${fmtEspnDate(cursor)}-${fmtEspnDate(clampedEnd)}`);
+    cursor.setDate(cursor.getDate() + CHUNK_DAYS);
+  }
+
+  // Fetch all chunks in parallel
+  const results = await Promise.all(
+    chunks.map((range) => fetcher(leagueSlug, range)),
+  );
+
+  // Deduplicate by match ID
+  const seen = new Set<string>();
+  const allMatches: FootballMatch[] = [];
+  for (const batch of results) {
+    for (const match of batch) {
+      if (!seen.has(match.id)) {
+        seen.add(match.id);
+        allMatches.push(match);
+      }
+    }
+  }
+
+  return allMatches;
+}
 
 /**
  * Football (soccer) sport adapter.
@@ -103,8 +161,16 @@ export const footballConfig: SportConfig = {
       const leagueSlug = party.leagueSlug || "fifa.world";
       const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
 
-      // Fetch all matches for the tournament
-      const matches = await fetchFootballMatches(leagueSlug);
+      // ESPN's scoreboard without a date range only returns today's matches,
+      // so we must request the full tournament window. For long tournaments
+      // (e.g. 40-day World Cup), we chunk into 7-day windows to avoid ESPN
+      // truncating large responses, then deduplicate by match ID.
+      const leagueConfig = FOOTBALL_LEAGUES[leagueSlug];
+      const matches = await fetchAllTournamentMatches(
+        leagueSlug,
+        leagueConfig,
+        fetchFootballMatches,
+      );
 
       // Build a set of all team IDs that were picked by any party member
       const allPickedTeamIds = new Set<string>();

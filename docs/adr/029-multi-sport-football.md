@@ -106,6 +106,16 @@ Key endpoints:
 - Penalty shootout wins count as wins (3 points)
 - Scoring direction is reversed from golf: highest total wins
 
+## Bugfix: ESPN Scoreboard Date Range (2026-06-12)
+
+ESPN's `/scoreboard` endpoint without a `dates` parameter only returns the current day's matches. This caused all team scores to reset to 0 each day because previous days' completed matches were no longer included in the response.
+
+**Fix:** `fetchScores()` in `football.ts` now fetches the full tournament window (June 11 - July 19 for WC 2026) in 7-day chunks via `Promise.all`, then deduplicates by match ID. This ensures all completed matches across the 40-day tournament are always included in scoring, regardless of which day the leaderboard is viewed.
+
+| File | Changes |
+|------|---------|
+| `src/lib/sports/football.ts` | Added `fetchAllTournamentMatches()` helper that chunks the tournament date range into weekly windows, fetches in parallel, and deduplicates. `fetchScores()` now uses this instead of a single undated scoreboard call. |
+
 ## Related
 
 - ADR-004: Player Groups (golf tier system)
