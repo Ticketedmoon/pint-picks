@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   calculateTeamMatchPoints,
+  isKnockoutStage,
   clearFootballCache,
 } from "@/lib/sports/football/espn";
 import type { FootballMatch } from "@/lib/sports/football/types";
@@ -49,6 +50,7 @@ describe("calculateTeamMatchPoints", () => {
       losses: 0,
       matchesPlayed: 1,
       matchSummaries: [{ opponent: "Team B", opponentAbbr: "TB", result: "W", teamScore: 2, opponentScore: 1, stage: undefined }],
+      eliminated: false,
     });
   });
 
@@ -61,6 +63,7 @@ describe("calculateTeamMatchPoints", () => {
       losses: 1,
       matchesPlayed: 1,
       matchSummaries: [{ opponent: "Team A", opponentAbbr: "TA", result: "L", teamScore: 1, opponentScore: 2, stage: undefined }],
+      eliminated: false,
     });
   });
 
@@ -78,6 +81,7 @@ describe("calculateTeamMatchPoints", () => {
       losses: 0,
       matchesPlayed: 1,
       matchSummaries: [{ opponent: "Team B", opponentAbbr: "TB", result: "D", teamScore: 1, opponentScore: 1, stage: undefined }],
+      eliminated: false,
     });
   });
 
@@ -136,6 +140,7 @@ describe("calculateTeamMatchPoints", () => {
       losses: 0,
       matchesPlayed: 1,
       matchSummaries: [{ opponent: "Team A", opponentAbbr: "TA", result: "W", teamScore: 2, opponentScore: 0, stage: undefined }],
+      eliminated: false,
     });
   });
 
@@ -148,7 +153,79 @@ describe("calculateTeamMatchPoints", () => {
       losses: 0,
       matchesPlayed: 0,
       matchSummaries: [],
+      eliminated: false,
     });
+  });
+});
+
+describe("isKnockoutStage", () => {
+  it("returns true for knockout rounds", () => {
+    expect(isKnockoutStage("Round of 16")).toBe(true);
+    expect(isKnockoutStage("Round of 32")).toBe(true);
+    expect(isKnockoutStage("Quarterfinals")).toBe(true);
+    expect(isKnockoutStage("Semifinals")).toBe(true);
+    expect(isKnockoutStage("Final")).toBe(true);
+    expect(isKnockoutStage("3rd Place")).toBe(true);
+  });
+
+  it("returns true for ESPN season round slugs", () => {
+    expect(isKnockoutStage("round-of-32")).toBe(true);
+    expect(isKnockoutStage("round-of-16")).toBe(true);
+    expect(isKnockoutStage("quarterfinals")).toBe(true);
+    expect(isKnockoutStage("semifinals")).toBe(true);
+    expect(isKnockoutStage("third-place")).toBe(true);
+  });
+
+  it("returns false for group/league stages and missing values", () => {
+    expect(isKnockoutStage("Group A")).toBe(false);
+    expect(isKnockoutStage("group-stage")).toBe(false);
+    expect(isKnockoutStage("Matchday 5")).toBe(false);
+    expect(isKnockoutStage(undefined)).toBe(false);
+    expect(isKnockoutStage("")).toBe(false);
+  });
+});
+
+describe("calculateTeamMatchPoints knockout elimination", () => {
+  const knockoutLoss: FootballMatch = {
+    id: "ko1",
+    date: "2026-07-05T19:00Z",
+    name: "Team A vs Team B",
+    shortName: "A vs B",
+    status: "post",
+    statusDetail: "Full Time",
+    stage: "Round of 16",
+    homeTeam: { id: "100", displayName: "Team A", abbreviation: "TA", logo: "", score: 1, winner: false },
+    awayTeam: { id: "200", displayName: "Team B", abbreviation: "TB", logo: "", score: 2, winner: true },
+  };
+
+  it("marks a team eliminated after a knockout loss", () => {
+    const result = calculateTeamMatchPoints("100", [knockoutLoss]);
+    expect(result.eliminated).toBe(true);
+    expect(result.losses).toBe(1);
+  });
+
+  it("marks a team eliminated via the season round slug when notes are empty", () => {
+    // Real ESPN data: knockout matches carry an empty notes text but a
+    // season.slug like "round-of-32". Croatia lost to Portugal here.
+    const realKnockoutLoss: FootballMatch = {
+      ...knockoutLoss,
+      stage: "",
+      round: "round-of-32",
+    };
+    const result = calculateTeamMatchPoints("100", [realKnockoutLoss]);
+    expect(result.eliminated).toBe(true);
+  });
+
+  it("does not eliminate the knockout winner", () => {
+    const result = calculateTeamMatchPoints("200", [knockoutLoss]);
+    expect(result.eliminated).toBe(false);
+    expect(result.wins).toBe(1);
+  });
+
+  it("does not eliminate on a group-stage loss", () => {
+    const groupLoss: FootballMatch = { ...knockoutLoss, stage: "Group A" };
+    const result = calculateTeamMatchPoints("100", [groupLoss]);
+    expect(result.eliminated).toBe(false);
   });
 });
 

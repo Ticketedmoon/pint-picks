@@ -24,8 +24,10 @@ export interface FootballMatch {
   statusDetail: string;
   homeTeam: FootballMatchTeam;
   awayTeam: FootballMatchTeam;
-  /** e.g. "Group A", "Round of 16", "Final" */
+  /** e.g. "Group A", "Round of 16", "Final" (from ESPN competition notes, often empty) */
   stage?: string;
+  /** ESPN season slug identifying the round, e.g. "group-stage", "round-of-32", "quarterfinals". Reliable knockout indicator. */
+  round?: string;
   venue?: string;
 }
 

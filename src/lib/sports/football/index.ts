@@ -16,6 +16,7 @@ export {
   fetchFootballLeagues,
   fetchFootballLeagueStatus,
   calculateTeamMatchPoints,
+  isKnockoutStage,
   clearFootballCache,
 } from "./espn";
 export type { MatchSummary } from "./espn";

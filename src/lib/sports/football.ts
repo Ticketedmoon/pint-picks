@@ -159,7 +159,7 @@ export const footballConfig: SportConfig = {
   async fetchScores(party: Party): Promise<{ scores: PlayerScore[]; cutLine: number | null; cutRound: number | null }> {
     try {
       const leagueSlug = party.leagueSlug || "fifa.world";
-      const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+      const { fetchFootballMatches, calculateTeamMatchPoints, fetchFootballStandings, isKnockoutStage } = await import("@/lib/sports/football/espn");
 
       // ESPN's scoreboard without a date range only returns today's matches,
       // so we must request the full tournament window. For long tournaments
@@ -171,6 +171,39 @@ export const footballConfig: SportConfig = {
         leagueConfig,
         fetchFootballMatches,
       );
+
+      const isKnockoutMatch = (m: FootballMatch): boolean =>
+        isKnockoutStage(m.round) || isKnockoutStage(m.stage);
+
+      // Bracket membership: once the knockout stage is underway, any team that
+      // finished its group games but never appears in a knockout fixture has
+      // been knocked out. This catches teams ESPN's standings note can't
+      // distinguish, e.g. non-qualifying 3rd-placed teams whose note stays
+      // "Best 8 advance" identical to the 3rd-placed teams that DID advance.
+      const knockoutTeamIds = new Set<string>();
+      let knockoutStarted = false;
+      for (const m of matches) {
+        if (!isKnockoutMatch(m)) continue;
+        if (m.status === "in" || m.status === "post") knockoutStarted = true;
+        if (m.homeTeam.id) knockoutTeamIds.add(m.homeTeam.id);
+        if (m.awayTeam.id) knockoutTeamIds.add(m.awayTeam.id);
+      }
+
+      // Group-stage elimination: ESPN flags eliminated teams in the standings
+      // note (e.g. bottom of a group after all matches played). Knockout-stage
+      // elimination is derived from match results below. Standings are
+      // best-effort: a failure here should not break live scoring.
+      const eliminatedTeamIds = new Set<string>();
+      try {
+        const groups = await fetchFootballStandings(leagueSlug);
+        for (const group of groups) {
+          for (const entry of group.entries) {
+            if (entry.eliminated) eliminatedTeamIds.add(entry.teamId);
+          }
+        }
+      } catch {
+        // Standings unavailable (e.g. league with no group phase); ignore.
+      }
 
       // Build a set of all team IDs that were picked by any party member
       const allPickedTeamIds = new Set<string>();
@@ -210,12 +243,38 @@ export const footballConfig: SportConfig = {
           (m) => `${m.result}|${m.opponentAbbr}|${m.teamScore}-${m.opponentScore}`
         );
 
+        // A team is knocked out if:
+        //  - it lost a knockout match (result.eliminated), or
+        //  - ESPN's group standings marked it eliminated, or
+        //  - the knockout stage is underway, the team has finished all its
+        //    group games, and it is not in the knockout bracket (missed out,
+        //    e.g. a non-qualifying 3rd-placed team).
+        const teamMatches = matches.filter(
+          (m) => m.homeTeam.id === teamId || m.awayTeam.id === teamId,
+        );
+        const groupMatches = teamMatches.filter((m) => !isKnockoutMatch(m));
+        const playedGroupGame = groupMatches.some((m) => m.status === "post");
+        const hasPendingGroupGame = groupMatches.some((m) => m.status !== "post");
+        const missedBracket =
+          knockoutStarted &&
+          playedGroupGame &&
+          !hasPendingGroupGame &&
+          !knockoutTeamIds.has(teamId);
+
+        const eliminated =
+          result.eliminated || eliminatedTeamIds.has(teamId) || missedBracket;
+        const status: PlayerScore["status"] = eliminated
+          ? "eliminated"
+          : result.matchesPlayed > 0
+            ? "active"
+            : "pre";
+
         scores.push({
           playerId: teamId,
           playerName: teamName,
           scoreToPar: result.points,
           displayScore: formatPoints(result.points),
-          status: result.matchesPlayed > 0 ? "active" : "pre",
+          status,
           roundScores: roundScores.length > 0 ? roundScores : undefined,
         });
       }

@@ -67,12 +67,13 @@ export function PickCell({ pick, label, variant, sportType }: PickCellProps) {
   const [expanded, setExpanded] = useState(false);
 
   const isCut = sport.hasCutMechanic && pick.status !== "playing" && pick.status !== "finished";
+  const isEliminated = pick.status === "eliminated";
   const isCapped = sport.hasCutMechanic && !!pick.actualDisplayScore;
   const hasRounds = sport.hasRoundScores && pick.roundScoresToPar && pick.roundScoresToPar.length > 0;
   const hasMatches = sport.hasMatchBreakdown && pick.roundScoresToPar && pick.roundScoresToPar.length > 0;
   const isExpandable = hasRounds || hasMatches;
   const scoreColor = sport.getScoreColor(pick.scoreToPar, pick.status);
-  const nameColor = isCut ? "text-red-700 line-through" : variant === "card" ? "text-gray-700" : "text-gray-600";
+  const nameColor = isCut || isEliminated ? "text-red-700 line-through" : variant === "card" ? "text-gray-700" : "text-gray-600";
 
   const toggleExpand = isExpandable ? () => setExpanded((prev) => !prev) : undefined;
 
@@ -100,6 +101,9 @@ export function PickCell({ pick, label, variant, sportType }: PickCellProps) {
           )}
           {isCut && (
             <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">CUT</span>
+          )}
+          {isEliminated && (
+            <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white" title="Knocked out of the tournament">OUT</span>
           )}
           {isExpandable && (
             <span className="shrink-0 text-[10px] text-gray-400">{expanded ? "▲" : "▼"}</span>
@@ -147,6 +151,9 @@ export function PickCell({ pick, label, variant, sportType }: PickCellProps) {
       )}
       {isCut && (
         <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white sm:px-1.5 sm:text-[10px]">CUT</span>
+      )}
+      {isEliminated && (
+        <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white sm:px-1.5 sm:text-[10px]" title="Knocked out of the tournament">OUT</span>
       )}
       {expanded && pick.roundScoresToPar && (
         hasMatches

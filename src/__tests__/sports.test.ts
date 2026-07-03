@@ -29,7 +29,11 @@ vi.mock("@/lib/sports/golf/playerGroups", () => ({
 vi.mock("@/lib/sports/football/espn", () => ({
   fetchFootballLeagueStatus: vi.fn(),
   fetchFootballMatches: vi.fn(),
+  fetchFootballStandings: vi.fn(),
   calculateTeamMatchPoints: vi.fn(),
+  isKnockoutStage: vi.fn((s?: string) =>
+    !!s && /round[\s-]?of|quarter|semi|\bfinal\b|3rd|third[\s-]?place|play-?off|knockout/i.test(s),
+  ),
 }));
 
 import { getSportConfig, getAllSportConfigs } from "@/lib/sports/registry";
@@ -178,6 +182,11 @@ describe("golfConfig", () => {
 });
 
 describe("footballConfig", () => {
+  beforeEach(async () => {
+    const { fetchFootballStandings } = await import("@/lib/sports/football/espn");
+    vi.mocked(fetchFootballStandings).mockResolvedValue([]);
+  });
+
   it("has correct display properties", () => {
     expect(footballConfig.emoji).toBe("⚽");
     expect(footballConfig.entityLabel).toBe("team");
@@ -291,6 +300,7 @@ describe("footballConfig", () => {
     vi.mocked(fetchFootballMatches).mockResolvedValue([]);
     vi.mocked(calculateTeamMatchPoints).mockReturnValue({
       points: 6, matchesPlayed: 2, wins: 2, draws: 0, losses: 0,
+      eliminated: false,
       matchSummaries: [
         { opponent: "Brazil", opponentAbbr: "BRA", result: "W", teamScore: 2, opponentScore: 0 },
         { opponent: "Germany", opponentAbbr: "GER", result: "W", teamScore: 1, opponentScore: 0 },
@@ -318,11 +328,120 @@ describe("footballConfig", () => {
     expect(result.scores[0].roundScores).toEqual(["W|BRA|2-0", "W|GER|1-0"]);
   });
 
+  it("fetchScores marks teams eliminated after a knockout loss", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+    vi.mocked(fetchFootballMatches).mockResolvedValue([]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 6, matchesPlayed: 4, wins: 2, draws: 0, losses: 1,
+      eliminated: true,
+      matchSummaries: [
+        { opponent: "Spain", opponentAbbr: "ESP", result: "L", teamScore: 0, opponentScore: 1, stage: "Round of 16" },
+      ],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      customGroups: { A: [{ id: "202", displayName: "Argentina" }], B: [], C: [], D: [] },
+    };
+    const result = await footballConfig.fetchScores(party);
+
+    expect(result.scores[0].status).toBe("eliminated");
+  });
+
+  it("fetchScores marks teams eliminated from group standings note", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints, fetchFootballStandings } = await import("@/lib/sports/football/espn");
+    vi.mocked(fetchFootballMatches).mockResolvedValue([]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 1, matchesPlayed: 3, wins: 0, draws: 1, losses: 2,
+      eliminated: false,
+      matchSummaries: [],
+    });
+    vi.mocked(fetchFootballStandings).mockResolvedValue([
+      {
+        id: "1", name: "Group A", abbreviation: "A",
+        entries: [{
+          teamId: "202", teamName: "Argentina", abbreviation: "ARG", logo: "",
+          matchesPlayed: 3, wins: 0, draws: 1, losses: 2, points: 1,
+          goalsFor: 1, goalsAgainst: 6, goalDifference: -5, eliminated: true,
+        }],
+      },
+    ]);
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      customGroups: { A: [{ id: "202", displayName: "Argentina" }], B: [], C: [], D: [] },
+    };
+    const result = await footballConfig.fetchScores(party);
+
+    expect(result.scores[0].status).toBe("eliminated");
+  });
+
+  it("fetchScores marks a team eliminated when knockouts start and it missed the bracket", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+    const mkTeam = (id: string, abbr: string, score = 0, winner = false) => ({
+      id, displayName: abbr, abbreviation: abbr, logo: "", score, winner,
+    });
+    const mkMatch = (id: string, round: string, status: "pre" | "in" | "post", home: ReturnType<typeof mkTeam>, away: ReturnType<typeof mkTeam>) => ({
+      id, date: "2026-06-20T19:00Z", name: `${home.abbreviation} vs ${away.abbreviation}`,
+      shortName: `${home.abbreviation} v ${away.abbreviation}`, status, statusDetail: "FT", round,
+      homeTeam: home, awayTeam: away,
+    });
+    // Team 202 finished all 3 group games but is not in any knockout fixture,
+    // while a round-of-32 match between other teams has already been played.
+    vi.mocked(fetchFootballMatches).mockResolvedValue([
+      mkMatch("g1", "group-stage", "post", mkTeam("202", "SCO"), mkTeam("500", "X")),
+      mkMatch("g2", "group-stage", "post", mkTeam("501", "Y"), mkTeam("202", "SCO")),
+      mkMatch("g3", "group-stage", "post", mkTeam("202", "SCO"), mkTeam("502", "Z")),
+      mkMatch("k1", "round-of-32", "post", mkTeam("300", "A", 2, true), mkTeam("400", "B", 1)),
+    ]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 3, matchesPlayed: 3, wins: 1, draws: 0, losses: 2, eliminated: false, matchSummaries: [],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      customGroups: { A: [{ id: "202", displayName: "Scotland" }], B: [], C: [], D: [] },
+    };
+    const result = await footballConfig.fetchScores(party);
+
+    expect(result.scores[0].status).toBe("eliminated");
+  });
+
+  it("fetchScores keeps a team active if it is in the knockout bracket", async () => {
+    const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
+    const mkTeam = (id: string, abbr: string) => ({ id, displayName: abbr, abbreviation: abbr, logo: "", score: 0, winner: false });
+    const mkMatch = (id: string, round: string, status: "pre" | "in" | "post", homeId: string, awayId: string) => ({
+      id, date: "2026-06-20T19:00Z", name: "m", shortName: "m", status, statusDetail: "FT", round,
+      homeTeam: mkTeam(homeId, "H"), awayTeam: mkTeam(awayId, "A"),
+    });
+    // Team 202 finished its group and appears in an upcoming round-of-32 fixture.
+    vi.mocked(fetchFootballMatches).mockResolvedValue([
+      mkMatch("g1", "group-stage", "post", "202", "500"),
+      mkMatch("k-other", "round-of-32", "post", "300", "400"),
+      mkMatch("k-team", "round-of-32", "pre", "202", "600"),
+    ]);
+    vi.mocked(calculateTeamMatchPoints).mockReturnValue({
+      points: 6, matchesPlayed: 3, wins: 2, draws: 0, losses: 1, eliminated: false, matchSummaries: [],
+    });
+
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      customGroups: { A: [{ id: "202", displayName: "Scotland" }], B: [], C: [], D: [] },
+    };
+    const result = await footballConfig.fetchScores(party);
+
+    expect(result.scores[0].status).toBe("active");
+  });
+
   it("fetchScores uses wildcard name when team not in groups", async () => {
     const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
     vi.mocked(fetchFootballMatches).mockResolvedValue([]);
     vi.mocked(calculateTeamMatchPoints).mockReturnValue({
-      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, matchSummaries: [],
+      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, eliminated: false, matchSummaries: [],
     });
 
     const party = {
@@ -355,7 +474,7 @@ describe("footballConfig", () => {
     const { fetchFootballMatches, calculateTeamMatchPoints } = await import("@/lib/sports/football/espn");
     vi.mocked(fetchFootballMatches).mockResolvedValue([]);
     vi.mocked(calculateTeamMatchPoints).mockReturnValue({
-      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, matchSummaries: [],
+      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, eliminated: false, matchSummaries: [],
     });
 
     const party = {
@@ -420,7 +539,7 @@ describe("footballConfig", () => {
     vi.mocked(fetchFootballMatches).mockReset();
     vi.mocked(fetchFootballMatches).mockResolvedValue([]);
     vi.mocked(calculateTeamMatchPoints).mockReturnValue({
-      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, matchSummaries: [],
+      points: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, eliminated: false, matchSummaries: [],
     });
 
     const party = {

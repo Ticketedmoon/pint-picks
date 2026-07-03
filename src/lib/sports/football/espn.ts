@@ -99,6 +99,12 @@ interface ESPNSoccerEvent {
   date: string;
   name: string;
   shortName: string;
+  season?: {
+    year?: number;
+    type?: number;
+    /** e.g. "group-stage", "round-of-32", "quarterfinals", "final" */
+    slug?: string;
+  };
   status: {
     type: {
       id: string;
@@ -215,6 +221,7 @@ function mapEventToMatch(event: ESPNSoccerEvent): FootballMatch {
       record: away?.records?.find((r) => r.type === "total")?.summary,
     },
     stage: comp?.notes?.[0]?.text,
+    round: event.season?.slug,
     venue: comp?.venue?.displayName,
   };
 }
@@ -278,20 +285,39 @@ export interface MatchSummary {
 }
 
 /**
+ * Determine whether a match stage/round is a single-elimination knockout round
+ * (Round of 16/32, Quarterfinal, Semifinal, Final, 3rd Place, Play-off).
+ * Accepts both ESPN season slugs (e.g. "round-of-32", "quarterfinals") and
+ * human-readable notes (e.g. "Round of 16"). Group/league stages
+ * (e.g. "group-stage", "Group A") return false. A team that loses a knockout
+ * match is out of the tournament.
+ */
+export function isKnockoutStage(stage?: string): boolean {
+  if (!stage) return false;
+  return /round[\s-]?of|quarter|semi|\bfinal\b|3rd|third[\s-]?place|play-?off|knockout/i.test(
+    stage,
+  );
+}
+
+/**
  * Calculate a team's accumulated match points from completed matches.
  * Win = 3, Draw = 1, Loss = 0.
  * This is an alternative to standings when you need real-time scoring
  * from the scoreboard (e.g. during knockout rounds not reflected in group standings).
+ *
+ * `eliminated` is true when the team lost a knockout-stage match, which
+ * definitively knocks it out of the tournament.
  */
 export function calculateTeamMatchPoints(
   teamId: string,
   matches: FootballMatch[],
-): { points: number; wins: number; draws: number; losses: number; matchesPlayed: number; matchSummaries: MatchSummary[] } {
+): { points: number; wins: number; draws: number; losses: number; matchesPlayed: number; matchSummaries: MatchSummary[]; eliminated: boolean } {
   let points = 0;
   let wins = 0;
   let draws = 0;
   let losses = 0;
   let matchesPlayed = 0;
+  let eliminated = false;
   const matchSummaries: MatchSummary[] = [];
 
   for (const match of matches) {
@@ -314,6 +340,12 @@ export function calculateTeamMatchPoints(
     } else if (opponent.winner) {
       losses++;
       result = "L";
+      // Losing a knockout match ends the tournament for this team. ESPN's
+      // per-match notes text is often empty, so we rely on the event's season
+      // round slug (match.round), falling back to the notes text (match.stage).
+      if (isKnockoutStage(match.round) || isKnockoutStage(match.stage)) {
+        eliminated = true;
+      }
     } else {
       draws++;
       points += 1;
@@ -330,7 +362,7 @@ export function calculateTeamMatchPoints(
     });
   }
 
-  return { points, wins, draws, losses, matchesPlayed, matchSummaries };
+  return { points, wins, draws, losses, matchesPlayed, matchSummaries, eliminated };
 }
 
 /**
