@@ -322,4 +322,40 @@ describe("syncPartyStatus", () => {
       expect.anything()
     );
   });
+
+  // --- canPersist gating (non-creator viewers) ---
+
+  it("does not read picks or write when canPersist is false at lock transition", async () => {
+    const party = makeParty({ status: "picking" });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "in", lockTime: null });
+
+    const result = await syncPartyStatus(party, { canPersist: false });
+
+    // Reflects the lock in-memory but performs no denied reads/writes
+    expect(result.status).toBe("locked");
+    expect(mocks.validatePicks).not.toHaveBeenCalled();
+    expect(mocks.updatePartyStatus).not.toHaveBeenCalled();
+    expect(mocks.updatePartyInvalidPicks).not.toHaveBeenCalled();
+  });
+
+  it("returns complete in-memory when canPersist is false and tournament is post", async () => {
+    const party = makeParty({ status: "picking" });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "post", lockTime: null });
+
+    const result = await syncPartyStatus(party, { canPersist: false });
+
+    expect(result.status).toBe("complete");
+    expect(mocks.validatePicks).not.toHaveBeenCalled();
+    expect(mocks.updatePartyStatus).not.toHaveBeenCalled();
+  });
+
+  it("does not persist locked → complete when canPersist is false", async () => {
+    const party = makeParty({ status: "locked" });
+    mocks.fetchTournamentStatus.mockResolvedValue({ status: "post", lockTime: null });
+
+    const result = await syncPartyStatus(party, { canPersist: false });
+
+    expect(result.status).toBe("complete");
+    expect(mocks.updatePartyStatus).not.toHaveBeenCalled();
+  });
 });

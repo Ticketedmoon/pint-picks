@@ -26,7 +26,7 @@ import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
 import { getSportConfig } from "@/lib/sports/registry";
 import { usePageView } from "@/lib/usePageView";
-import type { LeaderboardEntry, Party, PlayerScore } from "@/types";
+import type { LeaderboardEntry, Party, Picks, PlayerScore } from "@/types";
 
 function PartyContent() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -90,7 +90,7 @@ function PartyContent() {
   const buildLeaderboard = async (partyData: Party) => {
     const sport = getSportConfig(partyData.sportType);
     const [allPicks, usersInfo] = await Promise.all([
-      getAllPicksForParty(partyData.id),
+      fetchVisiblePicks(partyData),
       getUsersInfo(partyData.memberUids),
     ]);
 
@@ -99,6 +99,26 @@ function PartyContent() {
     setCutRound(cr);
     setTournamentScores(scores);
     return buildLeaderboardEntries(partyData, allPicks, usersInfo, scores, cl);
+  };
+
+  // Firestore rules only expose other members' picks once the party is
+  // locked/complete (anti-cheat). Before then, an unconstrained list of the
+  // picks subcollection is denied, so we fetch only the current user's own
+  // pick. Their picks are hidden in the UI pre-lock anyway.
+  const fetchVisiblePicks = async (partyData: Party): Promise<Record<string, Picks>> => {
+    const revealed = partyData.status === "locked" || partyData.status === "complete";
+    if (revealed) {
+      try {
+        return await getAllPicksForParty(partyData.id);
+      } catch {
+        // Persisted status may lag the live status (e.g. non-creator viewing
+        // right as the tournament starts); fall back to own picks only.
+      }
+    }
+    const uid = user?.uid;
+    if (!uid) return {};
+    const own = await getPicks(partyData.id, uid);
+    return own ? { [uid]: own } : {};
   };
 
   // Re-fetch when navigating back from picks (cache-bust via ?t= param)
@@ -115,7 +135,7 @@ function PartyContent() {
           return;
         }
         // Auto-sync party status with live tournament status
-        const synced = await syncPartyStatus(p);
+        const synced = await syncPartyStatus(p, { canPersist: user?.uid === p.createdBy });
         setParty(synced);
         const sport = getSportConfig(synced.sportType);
         const shouldFetchRound = sport.hasRoundScores && (synced.status === "locked" || synced.status === "complete");
@@ -141,7 +161,7 @@ function PartyContent() {
     setRefreshing(true);
     try {
       // Re-sync party status on every refresh
-      const synced = await syncPartyStatus(party);
+      const synced = await syncPartyStatus(party, { canPersist: user?.uid === party.createdBy });
       setParty(synced);
       const sport = getSportConfig(synced.sportType);
       const shouldFetchRound = sport.hasRoundScores && (synced.status === "locked" || synced.status === "complete");
@@ -298,7 +318,7 @@ function PartyContent() {
     if (!party || !partyId) return;
     setDeleting(true);
     try {
-      await deleteParty(partyId);
+      await deleteParty(partyId, party.memberUids);
       router.push(`/dashboard?sport=${party.sportType || "golf"}`);
     } catch {
       setError("Failed to delete party");

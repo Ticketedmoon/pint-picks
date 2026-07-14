@@ -62,11 +62,13 @@ service cloud.firestore {
 
       // ─── Picks (subcollection of party) ───
       // Members can read their OWN picks anytime. Other members' picks only when locked/complete (prevents cheating).
+      // The creator can read all picks (needed for the pick-validation gate at lock time).
       // Users can write their own picks. Creator can delete any picks (for party deletion / member removal).
       match /picks/{uid} {
         allow read: if isSignedIn() && (
           isOwner(uid)
           || isAdmin()
+          || isPartyCreator(partyId)
           || (
             isPartyMember(partyId)
             && resource.data != null

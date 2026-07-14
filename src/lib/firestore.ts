@@ -178,18 +178,26 @@ export async function getUserEmail(uid: string): Promise<string | null> {
   return snap.data().email || null;
 }
 
-export async function deleteParty(partyId: string): Promise<void> {
-  // Collect all subcollection docs, then delete everything in a batch
-  const [picksSnap, invitesSnap, unlocksSnap] = await Promise.all([
-    getDocs(collection(db(), "parties", partyId, "picks")),
+export async function deleteParty(partyId: string, memberUids: string[] = []): Promise<void> {
+  // Delete each member's pick doc by UID rather than listing the picks
+  // subcollection. Firestore rules deny an unconstrained list of picks while
+  // the party is still "picking", but the creator can delete any pick by id.
+  const batch = writeBatch(db());
+  const seen = new Set<string>();
+  for (const uid of memberUids) {
+    if (!uid || seen.has(uid)) continue;
+    seen.add(uid);
+    batch.delete(doc(db(), "parties", partyId, "picks", uid));
+  }
+
+  // Invites and pickUnlocks are readable by the creator, so list and delete them.
+  const [invitesSnap, unlocksSnap] = await Promise.all([
     getDocs(collection(db(), "parties", partyId, "invites")),
     getDocs(collection(db(), "parties", partyId, "pickUnlocks")),
   ]);
-
-  const batch = writeBatch(db());
-  for (const d of picksSnap.docs) batch.delete(d.ref);
   for (const d of invitesSnap.docs) batch.delete(d.ref);
   for (const d of unlocksSnap.docs) batch.delete(d.ref);
+
   batch.delete(doc(db(), "parties", partyId));
   await batch.commit();
 }

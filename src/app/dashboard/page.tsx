@@ -222,7 +222,8 @@ function DashboardContent() {
 
   const handleDelete = async (partyId: string) => {
     try {
-      await deleteParty(partyId);
+      const memberUids = parties.find((p) => p.id === partyId)?.memberUids ?? [];
+      await deleteParty(partyId, memberUids);
       setParties((prev) => prev.filter((p) => p.id !== partyId));
     } catch {
       alert("Failed to delete party. Please try again.");

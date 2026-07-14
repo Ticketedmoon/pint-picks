@@ -88,6 +88,7 @@ function GolfCreateContent({
   const [fieldAvailable, setFieldAvailable] = useState(false);
   const [checkingField, setCheckingField] = useState(false);
   const [customGroups, setCustomGroups] = useState<Record<string, Array<{ id: string; displayName: string }>> | null>(null);
+  const [customWildcards, setCustomWildcards] = useState<Array<{ id: string; displayName: string }> | null>(null);
   const [groupsConfirmed, setGroupsConfirmed] = useState(false);
   const [golfTiebreakerRules, setGolfTiebreakerRules] = useState<TiebreakerRule[]>([...DEFAULT_GOLF_TIEBREAKERS]);
 
@@ -110,6 +111,7 @@ function GolfCreateContent({
     setShowGroupEditor(false);
     setGroupsConfirmed(false);
     setCustomGroups(null);
+    setCustomWildcards(null);
     fetchDynamicGroups(selectedTournament)
       .then((data) => setFieldAvailable(data.fieldAvailable))
       .catch(() => setFieldAvailable(false))
@@ -129,8 +131,9 @@ function GolfCreateContent({
     setLoadingGroups(false);
   };
 
-  const handleGroupsSave = (groups: Record<string, import("@/components/GroupEditor").GroupItem[]>) => {
+  const handleGroupsSave = (groups: Record<string, import("@/components/GroupEditor").GroupItem[]>, wildcards: import("@/components/GroupEditor").GroupItem[]) => {
     setCustomGroups(groups);
+    setCustomWildcards(wildcards.map((w) => ({ id: w.id, displayName: w.displayName })));
     setGroupsConfirmed(true);
     setShowGroupEditor(false);
   };
@@ -259,7 +262,7 @@ function GolfCreateContent({
         {showGroupEditor && (
           <GroupEditor
             groups={customGroups || defaultGroups}
-            wildcards={customGroups ? [] : defaultWildcards}
+            wildcards={customWildcards ?? defaultWildcards}
             fieldAvailable={fieldAvailable}
             onSave={handleGroupsSave}
           />

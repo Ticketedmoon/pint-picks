@@ -86,7 +86,7 @@ function PicksContent() {
         }
 
         // Auto-sync party status with live ESPN tournament status
-        const synced = await syncPartyStatus(partyData);
+        const synced = await syncPartyStatus(partyData, { canPersist: user.uid === partyData.createdBy });
         setParty(synced);
         if (existingPicks) setPicks(existingPicks);
 
@@ -219,7 +219,7 @@ function PicksContent() {
         // Normal save: re-check party status right before saving (prevents stale page saves)
         const freshParty = await getParty(partyId);
         if (freshParty) {
-          const synced = await syncPartyStatus(freshParty);
+          const synced = await syncPartyStatus(freshParty, { canPersist: user.uid === freshParty.createdBy });
           if (synced.status !== "picking") {
             setParty(synced);
             setError("🔒 Tournament has started - picks are locked. Your changes were not saved.");

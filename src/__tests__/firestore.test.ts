@@ -310,16 +310,28 @@ describe("getUserEmail", () => {
 
 // ─── deleteParty ───
 describe("deleteParty", () => {
-  it("deletes subcollections and party in a batch", async () => {
+  it("deletes picks by member UID, lists invites/pickUnlocks, and deletes party in a batch", async () => {
     mockGetDocs
-      .mockResolvedValueOnce(mockQuerySnap([{ id: "pick1", data: {} }]))
-      .mockResolvedValueOnce(mockQuerySnap([{ id: "inv1", data: {} }]))
-      .mockResolvedValueOnce(mockQuerySnap([]));
+      .mockResolvedValueOnce(mockQuerySnap([{ id: "inv1", data: {} }])) // invites
+      .mockResolvedValueOnce(mockQuerySnap([])); // pickUnlocks
     batchOps.commit.mockResolvedValue(undefined);
 
-    await deleteParty("p1");
-    expect(batchOps.delete).toHaveBeenCalledTimes(3); // 1 pick + 1 invite + party doc
+    await deleteParty("p1", ["uid1", "uid2"]);
+    // 2 member picks + 1 invite + party doc = 4 deletes; no picks list query
+    expect(batchOps.delete).toHaveBeenCalledTimes(4);
     expect(batchOps.commit).toHaveBeenCalledTimes(1);
+    expect(mockGetDocs).toHaveBeenCalledTimes(2); // invites + pickUnlocks only
+  });
+
+  it("dedupes member UIDs and handles no members", async () => {
+    mockGetDocs
+      .mockResolvedValueOnce(mockQuerySnap([])) // invites
+      .mockResolvedValueOnce(mockQuerySnap([])); // pickUnlocks
+    batchOps.commit.mockResolvedValue(undefined);
+
+    await deleteParty("p1", ["uid1", "uid1", ""]);
+    // 1 unique pick + party doc = 2 deletes
+    expect(batchOps.delete).toHaveBeenCalledTimes(2);
   });
 });
 

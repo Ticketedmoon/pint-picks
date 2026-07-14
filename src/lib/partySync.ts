@@ -14,27 +14,44 @@ const NOTIFICATION_COOLDOWN_MS = 1000 * 60 * 60; // 1 hour
  *   picking → complete (when tournament ends, if sport supports it)
  *   locked  → complete (when tournament ends)
  *
+ * Firestore rules only allow the party creator to update the party document,
+ * and only the creator (or the party once locked) can read all members' picks.
+ * So persistence and pick validation are gated behind `canPersist`, which the
+ * caller sets to true only for the creator. Non-creators still receive the
+ * correct in-memory status but do not attempt denied reads/writes.
+ *
  * Returns the updated party object.
  */
-export async function syncPartyStatus(party: Party, authToken?: string): Promise<Party> {
+export async function syncPartyStatus(
+  party: Party,
+  options: { canPersist?: boolean; authToken?: string } = {},
+): Promise<Party> {
+  const { canPersist = true, authToken } = options;
   const sport = getSportConfig(party.sportType);
   const { status: tournamentStatus } = await sport.fetchTournamentStatus(party);
 
   // locked → complete transition (no validation needed, picks already locked)
   if (party.status === "locked" && tournamentStatus === "post") {
-    await updatePartyStatus(party.id, "complete");
+    if (canPersist) await updatePartyStatus(party.id, "complete");
     return { ...party, status: "complete" };
   }
 
   // picking → locked/complete transition
   if (party.status === "picking" && (tournamentStatus === "in" || tournamentStatus === "post")) {
+    const newStatus = tournamentStatus === "post" ? "complete" : "locked";
+
+    // Non-creators cannot read all members' picks (rules) nor write the party,
+    // so skip validation and persistence but still reflect the lock in the UI.
+    if (!canPersist) {
+      return { ...party, status: newStatus };
+    }
+
     const validation = await sport.validatePicks(party);
 
     if (validation.valid) {
       if (party.invalidPicks && party.invalidPicks.length > 0) {
         await clearPartyInvalidPicks(party.id);
       }
-      const newStatus = tournamentStatus === "post" ? "complete" : "locked";
       await updatePartyStatus(party.id, newStatus);
       return { ...party, status: newStatus, invalidPicks: [] };
     }

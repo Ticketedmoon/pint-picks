@@ -15,7 +15,7 @@ interface GroupEditorProps {
   groups: Record<string, GroupItem[]>;
   wildcards: GroupItem[];
   fieldAvailable: boolean;
-  onSave: (groups: Record<string, GroupItem[]>) => void;
+  onSave: (groups: Record<string, GroupItem[]>, wildcards: GroupItem[]) => void;
   /** "player" for golf, "team" or "country" for football */
   entityType?: "player" | "team" | "country";
 }
@@ -216,7 +216,7 @@ export function GroupEditor({ groups, wildcards, fieldAvailable, onSave, entityT
       </div>
 
       <button
-        type="button" onClick={() => onSave(editGroups)}
+        type="button" onClick={() => onSave(editGroups, pool)}
         className="mt-4 w-full rounded-lg bg-green-700 py-2.5 text-sm font-medium text-white hover:bg-green-600 transition-colors"
       >
         ✓ Confirm Groups
