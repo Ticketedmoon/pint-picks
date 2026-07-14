@@ -300,6 +300,18 @@ export function isKnockoutStage(stage?: string): boolean {
 }
 
 /**
+ * Determine whether a match stage/round is the third-place play-off (the match
+ * between the two losing semi-finalists to decide 3rd vs 4th). ESPN labels this
+ * with the season slug "3rd-place-match". This match is exhibition-only and must
+ * NOT contribute to a team's points tally. Accepts ESPN slugs and human-readable
+ * notes (e.g. "3rd Place", "Third Place Match").
+ */
+export function isThirdPlaceMatch(stage?: string): boolean {
+  if (!stage) return false;
+  return /3rd[\s-]?place|third[\s-]?place/i.test(stage);
+}
+
+/**
  * Calculate a team's accumulated match points from completed matches.
  * Win = 3, Draw = 1, Loss = 0.
  * This is an alternative to standings when you need real-time scoring
@@ -322,6 +334,10 @@ export function calculateTeamMatchPoints(
 
   for (const match of matches) {
     if (match.status !== "post") continue;
+
+    // The third-place play-off (3rd vs 4th) is exhibition-only and must not
+    // contribute to the points tally, W/D/L record, or matches played.
+    if (isThirdPlaceMatch(match.round) || isThirdPlaceMatch(match.stage)) continue;
 
     const isHome = match.homeTeam.id === teamId;
     const isAway = match.awayTeam.id === teamId;

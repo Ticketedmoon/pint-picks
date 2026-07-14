@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   calculateTeamMatchPoints,
   isKnockoutStage,
+  isThirdPlaceMatch,
   clearFootballCache,
 } from "@/lib/sports/football/espn";
 import type { FootballMatch } from "@/lib/sports/football/types";
@@ -182,6 +183,59 @@ describe("isKnockoutStage", () => {
     expect(isKnockoutStage("Matchday 5")).toBe(false);
     expect(isKnockoutStage(undefined)).toBe(false);
     expect(isKnockoutStage("")).toBe(false);
+  });
+});
+
+describe("isThirdPlaceMatch", () => {
+  it("returns true for third-place play-off labels", () => {
+    expect(isThirdPlaceMatch("3rd-place-match")).toBe(true);
+    expect(isThirdPlaceMatch("3rd Place")).toBe(true);
+    expect(isThirdPlaceMatch("Third Place Match")).toBe(true);
+    expect(isThirdPlaceMatch("third-place")).toBe(true);
+  });
+
+  it("returns false for other knockout rounds and missing values", () => {
+    expect(isThirdPlaceMatch("Final")).toBe(false);
+    expect(isThirdPlaceMatch("semifinals")).toBe(false);
+    expect(isThirdPlaceMatch("Group A")).toBe(false);
+    expect(isThirdPlaceMatch(undefined)).toBe(false);
+    expect(isThirdPlaceMatch("")).toBe(false);
+  });
+});
+
+describe("calculateTeamMatchPoints third-place exclusion", () => {
+  const thirdPlaceWin: FootballMatch = {
+    id: "3p",
+    date: "2026-07-18T19:00Z",
+    name: "Team A vs Team B",
+    shortName: "A vs B",
+    status: "post",
+    statusDetail: "Full Time",
+    round: "3rd-place-match",
+    homeTeam: { id: "100", displayName: "Team A", abbreviation: "TA", logo: "", score: 2, winner: true },
+    awayTeam: { id: "200", displayName: "Team B", abbreviation: "TB", logo: "", score: 1, winner: false },
+  };
+
+  it("awards no points to the third-place winner", () => {
+    const result = calculateTeamMatchPoints("100", [thirdPlaceWin]);
+    expect(result.points).toBe(0);
+    expect(result.wins).toBe(0);
+    expect(result.matchesPlayed).toBe(0);
+    expect(result.matchSummaries).toHaveLength(0);
+  });
+
+  it("does not penalise or record the third-place loser", () => {
+    const result = calculateTeamMatchPoints("200", [thirdPlaceWin]);
+    expect(result.points).toBe(0);
+    expect(result.losses).toBe(0);
+    expect(result.matchesPlayed).toBe(0);
+  });
+
+  it("excludes the third-place match while still counting other matches", () => {
+    const semiWin: FootballMatch = { ...thirdPlaceWin, id: "sf", round: "semifinals" };
+    const result = calculateTeamMatchPoints("100", [semiWin, thirdPlaceWin]);
+    expect(result.points).toBe(3);
+    expect(result.matchesPlayed).toBe(1);
   });
 });
 
