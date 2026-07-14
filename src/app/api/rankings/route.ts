@@ -31,7 +31,16 @@ const cacheMap = new Map<string, { data: unknown; fetchedAt: number }>();
 const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 /**
- * Fetch tournament field from ESPN. Returns a Set of lowercase player names.
+ * Normalize a player name for comparison: strip diacritics and lowercase.
+ * ESPN and OWGR spell accented names differently (e.g. ESPN "Ludvig Åberg"
+ * vs OWGR "Ludvig Aberg"), so an exact lowercase match drops accented players.
+ */
+function normalizeName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
+ * Fetch tournament field from ESPN. Returns a Set of normalized player names.
  * Returns null if field is not yet available (future tournaments).
  */
 async function fetchTournamentField(eventId: string): Promise<Set<string> | null> {
@@ -42,7 +51,7 @@ async function fetchTournamentField(eventId: string): Promise<Set<string> | null
     const competitors = data.events?.[0]?.competitions?.[0]?.competitors || [];
     if (competitors.length === 0) return null;
     return new Set(competitors.map((c: { athlete: { displayName: string } }) =>
-      c.athlete.displayName.toLowerCase()
+      normalizeName(c.athlete.displayName)
     ));
   } catch {
     return null;
@@ -65,7 +74,7 @@ export async function GET(request: NextRequest) {
   try {
     // Fetch OWGR rankings and tournament field in parallel
     const [owgrRes, field] = await Promise.all([
-      fetch(`${OWGR_API}?pageSize=200&pageNumber=1`),
+      fetch(`${OWGR_API}?pageSize=300&pageNumber=1`),
       eventId ? fetchTournamentField(eventId) : Promise.resolve(null),
     ]);
 
@@ -85,7 +94,7 @@ export async function GET(request: NextRequest) {
     // If we have a tournament field, filter to only players in the field
     const fieldAvailable = field !== null && field.size > 0;
     if (fieldAvailable) {
-      players = players.filter((p) => field.has(p.displayName.toLowerCase()));
+      players = players.filter((p) => field.has(normalizeName(p.displayName)));
     }
 
     // Build groups from the filtered list (first 6 = A, next 6 = B, etc.)
