@@ -43,6 +43,7 @@ export const golfConfig: SportConfig = {
   // Golf-specific features
   hasCutMechanic: true,
   hasRoundScores: true,
+  totalRounds: 4,
   hasMatchBreakdown: false,
   hasThruProgress: true,
 

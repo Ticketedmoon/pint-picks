@@ -14,22 +14,27 @@ interface PickCellProps {
 }
 
 /** Small inline pills showing per-round score relative to par (golf). */
-function RoundScorePills({ rounds }: { rounds: string[] }) {
+function RoundScorePills({ rounds, totalRounds }: { rounds: string[]; totalRounds?: number }) {
+  const slotCount = Math.max(totalRounds ?? rounds.length, rounds.length);
+  const slots = Array.from({ length: slotCount }, (_, i) => rounds[i]);
   return (
     <div className="mt-1 flex items-center gap-1">
-      {rounds.map((score, i) => {
-        const normalized = score === "E" ? 0 : parseInt(score, 10);
-        const color = isNaN(normalized) || score === "-"
-          ? "bg-gray-100 text-gray-400"
-          : normalized < 0
-            ? "bg-red-50 text-red-600"
-            : normalized > 0
-              ? "bg-blue-50 text-blue-600"
-              : "bg-gray-100 text-gray-500";
+      {slots.map((score, i) => {
+        const played = score !== undefined;
+        const normalized = score === "E" ? 0 : parseInt(score ?? "", 10);
+        const color = !played
+          ? "bg-gray-50 text-gray-300 border border-dashed border-gray-200"
+          : isNaN(normalized) || score === "-"
+            ? "bg-gray-100 text-gray-400"
+            : normalized < 0
+              ? "bg-red-50 text-red-600"
+              : normalized > 0
+                ? "bg-blue-50 text-blue-600"
+                : "bg-gray-100 text-gray-500";
         return (
           <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold sm:text-[10px] ${color}`}>
-            <span className="mr-0.5 text-[8px] font-normal text-gray-400 sm:text-[9px]">R{i + 1}</span>
-            {score}
+            <span className={`mr-0.5 text-[8px] font-normal sm:text-[9px] ${played ? "text-gray-400" : "text-gray-300"}`}>R{i + 1}</span>
+            {played ? score : "–"}
           </span>
         );
       })}
@@ -113,7 +118,7 @@ export function PickCell({ pick, label, variant, sportType }: PickCellProps) {
           <div className="ml-8 pb-0.5">
             {hasMatches
               ? <MatchResultPills matches={pick.roundScoresToPar} />
-              : <RoundScorePills rounds={pick.roundScoresToPar} />}
+              : <RoundScorePills rounds={pick.roundScoresToPar} totalRounds={sport.totalRounds} />}
           </div>
         )}
       </div>
@@ -158,7 +163,7 @@ export function PickCell({ pick, label, variant, sportType }: PickCellProps) {
       {expanded && pick.roundScoresToPar && (
         hasMatches
           ? <MatchResultPills matches={pick.roundScoresToPar} />
-          : <RoundScorePills rounds={pick.roundScoresToPar} />
+          : <RoundScorePills rounds={pick.roundScoresToPar} totalRounds={sport.totalRounds} />
       )}
       <span className="sr-only">{label}</span>
     </div>

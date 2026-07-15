@@ -13,6 +13,20 @@ function buildRoundScoresToPar(roundScores: string[] | undefined): string[] | un
   return roundScores;
 }
 
+/**
+ * Normalize a player name for matching: lowercase, strip diacritics, and
+ * collapse whitespace. Ensures picks stored as "Ludvig Aberg" match ESPN's
+ * "Ludvig Åberg" (and similar accented names) when IDs don't line up.
+ */
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function buildLeaderboardEntries(
   party: Party,
   allPicks: Record<string, Picks>,
@@ -26,11 +40,11 @@ export function buildLeaderboardEntries(
 
   scores.forEach((score) => {
     scoreByIdMap.set(score.playerId, score);
-    scoreByNameMap.set(score.playerName.toLowerCase(), score);
+    scoreByNameMap.set(normalizeName(score.playerName), score);
   });
 
   const findScore = (playerId: string, playerName: string): PlayerScore | undefined => {
-    return scoreByIdMap.get(playerId) || scoreByNameMap.get(playerName.toLowerCase());
+    return scoreByIdMap.get(playerId) || scoreByNameMap.get(normalizeName(playerName));
   };
 
   const entries = party.memberUids.map((uid) => {

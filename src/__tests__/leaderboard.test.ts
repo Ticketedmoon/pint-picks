@@ -271,4 +271,47 @@ describe("buildLeaderboardEntries", () => {
 
     expect(uid1Entry.picks[0].roundScoresToPar).toBeUndefined();
   });
+
+  it("matches a pick to a score when only diacritics differ (Aberg vs Åberg)", () => {
+    const picks: Picks = {
+      groupA: { playerId: "stale-id", playerName: "Ludvig Aberg" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({
+      playerId: "espn-42",
+      playerName: "Ludvig Åberg",
+      scoreToPar: -4,
+      status: "playing",
+    })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    expect(uid1Entry.picks[0].playerName).toBe("Ludvig Åberg");
+    expect(uid1Entry.picks[0].scoreToPar).toBe(-4);
+    expect(uid1Entry.picks[0].displayScore).not.toBe("-");
+  });
+
+  it("still falls back to pending display when a pick truly has no matching score", () => {
+    const picks: Picks = {
+      groupA: { playerId: "nobody", playerName: "Ghost Player" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    const scores = [makeScore({ playerId: "a1", playerName: "Player A" })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    expect(uid1Entry.picks[0].displayScore).toBe("-");
+  });
 });

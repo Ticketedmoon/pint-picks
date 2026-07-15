@@ -69,6 +69,8 @@ export interface SportConfig {
   hasCutMechanic: boolean;
   /** Whether this sport has per-round score breakdown (golf rounds) */
   hasRoundScores: boolean;
+  /** Total number of rounds in a standard event (e.g. 4 for a golf major). Used to render all round slots even before they're played. */
+  totalRounds?: number;
   /** Whether this sport has per-match result breakdown (football matches) */
   hasMatchBreakdown: boolean;
   /** Whether this sport has "Thru X" hole progress */
