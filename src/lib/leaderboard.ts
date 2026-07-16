@@ -38,6 +38,12 @@ export function buildLeaderboardEntries(
   const scoreByIdMap = new Map<string, PlayerScore>();
   const scoreByNameMap = new Map<string, PlayerScore>();
 
+  // The cut is only in effect once ESPN has actually cut players from the
+  // field (after the cut round). ESPN publishes a projected cutScore during
+  // R1/R2, but no player carries "cut" status until the cut is applied, so
+  // this is a reliable signal that avoids capping made-cut players too early.
+  const cutIsActive = scores.some((s) => s.status === "cut");
+
   scores.forEach((score) => {
     scoreByIdMap.set(score.playerId, score);
     scoreByNameMap.set(normalizeName(score.playerName), score);
@@ -80,7 +86,7 @@ export function buildLeaderboardEntries(
 
       // Golf uses effective score calculation (cut/cap/penalty logic)
       if (sport.hasCutMechanic) {
-        const { effectiveScore, penalty, wasCapped } = calculateEffectiveScore(score, cutLine);
+        const { effectiveScore, penalty, wasCapped } = calculateEffectiveScore(score, cutLine, cutIsActive);
         totalScore += effectiveScore;
 
         const displayParts = [formatScoreToPar(effectiveScore)];

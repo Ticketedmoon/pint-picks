@@ -436,10 +436,16 @@ async function fetchPlayersFromRecentTournament(): Promise<Player[]> {
  * player who makes the cut but plays poorly afterwards never scores worse
  * than the cutLine itself. This keeps things fair: the user is not penalised
  * for a player who slumps after making the cut.
+ *
+ * The made-cut cap only applies once the cut is actually in effect (after the
+ * cut round, typically R2). Before then ESPN still publishes a *projected*
+ * cutScore, so capping during R1/R2 would wrongly flag players as capped even
+ * though nobody has been cut yet. Pass `cutIsActive = false` to skip it.
  */
 export function calculateEffectiveScore(
   playerScore: PlayerScore,
   cutLine?: number | null,
+  cutIsActive: boolean = true,
 ): {
   effectiveScore: number;
   penalty: number;
@@ -460,8 +466,9 @@ export function calculateEffectiveScore(
 
   // Cap made-cut players at the cutLine: if they made the cut but their
   // score drifts above the line, they are scored at the cutLine instead.
+  // Only applies once the cut is actually in effect (post cut round).
   const isMadeCut = playerScore.status === "playing" || playerScore.status === "finished";
-  if (isMadeCut && cutLine != null && rawScore > cutLine) {
+  if (isMadeCut && cutIsActive && cutLine != null && rawScore > cutLine) {
     return { effectiveScore: cutLine, penalty: 0, wasCapped: true };
   }
 

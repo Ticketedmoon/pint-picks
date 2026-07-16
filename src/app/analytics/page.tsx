@@ -2,250 +2,55 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { collection, doc, getDocs, setDoc, increment } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
+import {
+  buildPartyActivity,
+  extractCounterMap,
+  formatRelativeTime,
+  type PartyActivity,
+  type PartyRecord,
+  type RawTournamentDoc,
+} from "@/lib/partyAnalytics";
 
-interface PartyInfo {
-  id: string;
-  name: string;
-  createdBy: string;
-  creatorName: string;
-  memberUids: string[];
-  sportType: string;
-  tournamentId: string;
-  tournamentName: string;
+const CACHE_KEY = "analytics_party_cache";
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function sportIcon(sport: string): string {
+  if (sport === "football" || sport === "soccer") return "⚽";
+  return "⛳";
 }
 
-interface AnalyticsData {
-  totalViews: number;
-  totalClicks: number;
-  uniqueUsers: number;
-  byPage: Record<string, number>;
-  byBrowser: Record<string, number>;
-  byTimezone: Record<string, number>;
-  dailyVisits: { date: string; label: string; count: number }[];
-  byUser: Record<string, { email: string | null; views: number; clicks: number; lastVisit: string; pages: Record<string, number>; dailyDates: Record<string, number> }>;
-  tournamentDocs: TournamentAnalytics[];
-  tournamentNames: Record<string, string>;
-  systemHealth: SystemHealth;
-  parties: PartyInfo[];
-  /** Map of uid to display name, built from the users collection */
-  uidToName: Record<string, string>;
-  /** Map of uid to email address, built from the users collection */
-  uidToEmail: Record<string, string>;
-}
-
-interface SystemHealth {
-  userCount: number;
-  partyCount: number;
-  analyticsDocs: number;
-  estimatedDailyReads: number;
-  estimatedDailyWrites: number;
-}
-
-interface TournamentAnalytics {
-  docId: string;
-  uid: string;
-  tournamentId: string;
-  email: string | null;
-  totalViews: number;
-  totalClicks: number;
-  pages: Record<string, number>;
-  browsers: Record<string, number>;
-  lastVisit: string;
-}
-
-function sortedEntries(obj: Record<string, number> | undefined | null): [string, number][] {
-  if (!obj) return [];
-  return Object.entries(obj).sort((a, b) => b[1] - a[1]);
-}
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-    </div>
-  );
-}
-
-function BreakdownChart({ title, data, color = "bg-green-500" }: { title: string; data: [string, number][]; color?: string }) {
-  if (data.length === 0) return null;
-  const max = Math.max(...data.map(([, c]) => c), 1);
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
-      </div>
-      <div className="px-4 py-3 space-y-2">
-        {data.slice(0, 10).map(([key, count]) => (
-          <div key={key}>
-            <div className="flex items-center justify-between mb-0.5">
-              <span className="text-xs text-gray-600 truncate max-w-[70%]">{key}</span>
-              <span className="text-xs font-bold text-gray-900">{count}</span>
-            </div>
-            <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-              <div className={`h-full rounded-full ${color}`} style={{ width: `${(count / max) * 100}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DailyChart({ data }: { data: { date: string; label: string; count: number }[] | undefined }) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-8">
-        <div className="px-4 py-3 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-800">Daily Activity</h3>
-        </div>
-        <div className="px-4 py-8 text-center text-sm text-gray-400">
-          No daily data yet. The chart will populate as users browse the site.
-        </div>
-      </div>
-    );
-  }
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-8">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800">Daily Activity</h3>
-      </div>
-      <div className="px-4 py-4">
-        <div className="flex items-end gap-1" style={{ height: "160px" }}>
-          {data.map((d) => {
-            const heightPct = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
-            return (
-              <div key={d.date} className="group relative flex flex-1 flex-col items-center justify-end h-full">
-                <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded bg-gray-800 px-2 py-1 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap z-10">
-                  {d.count} visit{d.count !== 1 ? "s" : ""}
-                </div>
-                <div
-                  className="w-full min-h-[2px] rounded-t bg-green-600 transition-all group-hover:bg-green-500"
-                  style={{ height: `${Math.max(heightPct, 1.5)}%` }}
-                />
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-2 flex gap-1">
-          {data.map((d, i) => {
-            const showLabel = data.length <= 14 || i % Math.ceil(data.length / 10) === 0 || i === data.length - 1;
-            return (
-              <div key={d.date} className="flex-1 text-center">
-                {showLabel && <span className="text-[9px] text-gray-400 sm:text-[10px]">{d.label}</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CapacityGauge({ label, current, limit, unit, warningAt }: {
-  label: string;
-  current: number;
-  limit: number;
-  unit: string;
-  warningAt?: number;
-}) {
-  const pct = Math.min((current / limit) * 100, 100);
-  const threshold = warningAt ?? 0.7;
-  const ratio = current / limit;
-  const color = ratio >= 0.9 ? "bg-red-500" : ratio >= threshold ? "bg-amber-500" : "bg-green-500";
-  const textColor = ratio >= 0.9 ? "text-red-700" : ratio >= threshold ? "text-amber-700" : "text-green-700";
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-gray-600">{label}</span>
-        <span className={`text-xs font-bold ${textColor}`}>
-          {current.toLocaleString()} / {limit.toLocaleString()} {unit}
-        </span>
-      </div>
-      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      {ratio >= 0.9 && (
-        <p className="mt-1 text-[10px] font-medium text-red-600">⚠️ Approaching limit, consider upgrading</p>
-      )}
-      {ratio >= threshold && ratio < 0.9 && (
-        <p className="mt-1 text-[10px] font-medium text-amber-600">Monitor closely</p>
-      )}
-    </div>
-  );
-}
-
-/** Firestore free tier limits */
-const LIMITS = {
-  firestoreReadsPerDay: 50_000,
-  firestoreWritesPerDay: 20_000,
-  firestoreStorage: 1_073_741_824, // 1 GiB in bytes
-  vercelInvocationsPerMonth: 100_000,
-  vercelBandwidthGB: 100,
-};
-
-/**
- * Estimate daily Firestore reads based on user count and app behavior.
- * Per user visit:
- *   - Party page: ~8 reads (party + picks + users + leaderboard)
- *   - Auto-refresh: same 8 reads every 5 min for ~2 hours = ~24 refreshes = ~192 reads
- *   - Dashboard: ~3 reads
- *   - Analytics: ~3 reads (admin only)
- * Conservative estimate: ~200 reads per active user per day during a tournament.
- */
-function estimateDailyReads(userCount: number, partyCount: number): number {
-  const activeUsersPerDay = Math.ceil(userCount * 0.6);
-  return activeUsersPerDay * 200 + partyCount * 10;
-}
-
-/**
- * Estimate daily Firestore writes.
- * Per user visit:
- *   - Analytics: 1 write (aggregated doc update)
- *   - Last visit: 1 write (debounced)
- *   - Picks save: 1 write (once per tournament)
- * Conservative estimate: ~5 writes per active user per day.
- */
-function estimateDailyWrites(userCount: number): number {
-  const activeUsersPerDay = Math.ceil(userCount * 0.6);
-  return activeUsersPerDay * 5;
-}
-
-/**
- * Estimate monthly Vercel serverless invocations.
- * Only API route calls count (not client-side Firestore reads).
- * Per user per session: ~2 ESPN proxy calls per refresh, ~24 refreshes over 2 hours = ~48
- * Plus rankings, invite, notification routes (rare).
- * Conservative: ~50 invocations per active user per day.
- */
-function estimateMonthlyVercelInvocations(userCount: number): number {
-  const activeUsersPerDay = Math.ceil(userCount * 0.6);
-  return activeUsersPerDay * 50 * 30;
+function exactTime(iso: string): string {
+  if (!iso) return "Never visited";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Never visited";
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export default function AnalyticsPage() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [parties, setParties] = useState<PartyActivity[] | null>(null);
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(false);
-  const [selectedPartyId, setSelectedPartyId] = useState<string>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const fetchData = async (email: string, bypassCache = false) => {
-    // Try sessionStorage cache first
     if (!bypassCache) {
       try {
-        const cached = sessionStorage.getItem("analytics_cache");
+        const cached = sessionStorage.getItem(CACHE_KEY);
         if (cached) {
-          const { data: cachedData, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 10 * 60 * 1000) {
-            setData(cachedData);
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_TTL_MS) {
+            setParties(data);
             return;
           }
         }
@@ -260,224 +65,59 @@ export default function AnalyticsPage() {
     const adminEmail = process.env.NEXT_PUBLIC_ANALYTICS_ADMIN_EMAIL;
     if (!adminEmail || email !== adminEmail) {
       setError("Access denied - your account is not authorized to view analytics.");
-      setData(null);
+      setParties(null);
       setFetching(false);
       return;
     }
 
     try {
       const db = getFirebaseDb();
-
-      // Fetch analytics, last-visit, users, and parties counts in parallel
-      const [generalSnap, tournamentSnap, usersSnap, partiesSnap] = await Promise.all([
-        getDocs(collection(db, "analytics_general")),
+      const [tournamentSnap, usersSnap, partiesSnap] = await Promise.all([
         getDocs(collection(db, "analytics_tournament")),
         getDocs(collection(db, "users")),
         getDocs(collection(db, "parties")),
       ]);
 
-      const analyticsSnap = { docs: [...generalSnap.docs, ...tournamentSnap.docs], size: generalSnap.size + tournamentSnap.size };
-
-      // Process aggregated analytics docs
-      let totalViews = 0;
-      let totalClicks = 0;
-      const byPage: Record<string, number> = {};
-      const byBrowser: Record<string, number> = {};
-      const byTimezone: Record<string, number> = {};
-      const dailyBuckets: Record<string, number> = {};
-      const byUser: Record<string, { email: string | null; views: number; clicks: number; lastVisit: string; pages: Record<string, number>; dailyDates: Record<string, number> }> = {};
-      const tournamentDocs: TournamentAnalytics[] = [];
-
-      for (const d of analyticsSnap.docs) {
-        const data = d.data();
-        const docId = d.id;
-        const isOldFormat = !!(data.timestamp && data.type);
-
-        if (isOldFormat) {
-          // Old format: one doc per page view event
-          const uid = (data.uid as string) || "";
-          const email = (data.email as string) || null;
-          const page = (data.page as string) || "unknown";
-          const browser = (data.browser as string) || "unknown";
-          const type = (data.type as string) || "page_view";
-          const ts = (data.timestamp as string) || "";
-
-          totalViews += 1;
-          byPage[page] = (byPage[page] || 0) + 1;
-          byBrowser[browser] = (byBrowser[browser] || 0) + 1;
-
-          if (uid) {
-            if (!byUser[uid]) byUser[uid] = { email: null, views: 0, clicks: 0, lastVisit: "", pages: {}, dailyDates: {} };
-            if (email) byUser[uid].email = email;
-            if (type === "click") { byUser[uid].clicks++; totalClicks++; }
-            else byUser[uid].views++;
-            if (ts > byUser[uid].lastVisit) byUser[uid].lastVisit = ts;
-            byUser[uid].pages[page] = (byUser[uid].pages[page] || 0) + 1;
-            const date = ts.slice(0, 10);
-            if (date) byUser[uid].dailyDates[date] = (byUser[uid].dailyDates[date] || 0) + 1;
-          }
-          continue;
-        }
-
-        // New aggregated format
-        const uid = (data.uid as string) || "";
-        const email = (data.email as string) || null;
-        const views = (data.totalViews as number) || 0;
-        const clicks = (data.totalClicks as number) || 0;
-        const pages = (data.pages as Record<string, number>) || {};
-        const browsers = (data.browsers as Record<string, number>) || {};
-        const lastVisit = (data.lastVisit as string) || "";
-
-        totalViews += views;
-        totalClicks += clicks;
-
-        // Merge page counts
-        for (const [page, count] of Object.entries(pages)) {
-          const pageName = page.replace(/_/g, "/");
-          byPage[pageName] = (byPage[pageName] || 0) + count;
-        }
-
-        // Merge browser counts
-        for (const [browser, count] of Object.entries(browsers)) {
-          byBrowser[browser] = (byBrowser[browser] || 0) + count;
-        }
-
-        // Fallback: if no daily field, use lastVisit date to place total views
-        if (lastVisit && views > 0) {
-          // This is handled in the chart-building section below
-        }
-
-        // Track timezone
-        const tz = (data.timezone as string);
-        if (tz) {
-          byTimezone[tz] = (byTimezone[tz] || 0) + 1;
-        }
-
-        // Merge per-user stats
-        if (uid) {
-          if (!byUser[uid]) byUser[uid] = { email: null, views: 0, clicks: 0, lastVisit: "", pages: {}, dailyDates: {} };
-          if (email) byUser[uid].email = email;
-          byUser[uid].views += views;
-          byUser[uid].clicks += clicks;
-          if (lastVisit > byUser[uid].lastVisit) byUser[uid].lastVisit = lastVisit;
-          for (const [page, count] of Object.entries(pages)) {
-            const pageName = page.replace(/_/g, "/");
-            byUser[uid].pages[pageName] = (byUser[uid].pages[pageName] || 0) + count;
-          }
-          const daily = (data.daily as Record<string, number>) || {};
-          for (const [date, count] of Object.entries(daily)) {
-            byUser[uid].dailyDates[date] = (byUser[uid].dailyDates[date] || 0) + count;
-          }
-        }
-
-        // Track tournament-specific docs (from analytics_tournament collection)
-        const isTournamentDoc = tournamentSnap.docs.some((td) => td.id === docId);
-        if (isTournamentDoc && docId.includes("_")) {
-          const parts = docId.split("_");
-          const tournamentId = parts.slice(1).join("_");
-          if (!tournamentDocs.some((td) => td.docId === docId)) {
-            tournamentDocs.push({
-              docId,
-              uid,
-              tournamentId,
-              email,
-              totalViews: views,
-              totalClicks: clicks,
-              pages,
-              browsers,
-              lastVisit,
-            });
-          }
-        }
-      }
-
-      const userCount = usersSnap.size;
-      const partyCount = partiesSnap.size;
-
-      // Populate daily chart
-      for (const d of analyticsSnap.docs) {
-        const data = d.data();
-        const daily = (data.daily as Record<string, number>) || {};
-        if (d === analyticsSnap.docs[0]) {
-          console.log("[Analytics] first doc daily field:", JSON.stringify(daily), "type:", typeof daily);
-        }
-        for (const [date, count] of Object.entries(daily)) {
-          if (typeof count === "number") {
-            dailyBuckets[date] = (dailyBuckets[date] || 0) + count;
-          }
-        }
-        // Old format: has timestamp per event
-        if (data.timestamp && typeof data.timestamp === "string") {
-          const date = (data.timestamp as string).slice(0, 10);
-          if (date) {
-            dailyBuckets[date] = (dailyBuckets[date] || 0) + 1;
-          }
-        }
-      }
-
-      // Build tournament name map from parties
-      const tournamentNames = new Map<string, string>();
-      const uidToName = new Map<string, string>();
-      const uidToEmail = new Map<string, string>();
+      const uidToName: Record<string, string> = {};
+      const uidToEmail: Record<string, string> = {};
       for (const u of usersSnap.docs) {
-        const uData = u.data();
-        uidToName.set(u.id, (uData.displayName as string) || (uData.email as string) || u.id.slice(0, 8));
-        if (uData.email) uidToEmail.set(u.id, uData.email as string);
+        const d = u.data();
+        uidToName[u.id] = (d.displayName as string) || (d.email as string) || u.id.slice(0, 8);
+        if (d.email) uidToEmail[u.id] = d.email as string;
       }
-      const parties: PartyInfo[] = [];
-      for (const p of partiesSnap.docs) {
-        const pData = p.data();
-        const tid = pData.tournamentId as string;
-        const tname = pData.tournamentName as string;
-        if (tid && tname) tournamentNames.set(tid, tname);
-        parties.push({
+
+      const docs: RawTournamentDoc[] = tournamentSnap.docs.map((d) => {
+        const data = d.data() as Record<string, unknown>;
+        return {
+          id: d.id,
+          uid: (data.uid as string) || d.id.split("_")[0] || "",
+          email: (data.email as string) || null,
+          totalViews: (data.totalViews as number) || 0,
+          lastVisit: (data.lastVisit as string) || "",
+          // usePageView stores per-page counts as literal dotted fields
+          // ("pages._party_xyz") because setDoc-merge does not nest dotted keys.
+          pages: extractCounterMap(data, "pages"),
+        };
+      });
+
+      const partyRecords: PartyRecord[] = partiesSnap.docs.map((p) => {
+        const d = p.data();
+        return {
           id: p.id,
-          name: (pData.name as string) || "Unnamed Party",
-          createdBy: pData.createdBy as string,
-          creatorName: uidToName.get(pData.createdBy as string) || (pData.createdBy as string)?.slice(0, 8) || "Unknown",
-          memberUids: (pData.memberUids as string[]) || [],
-          sportType: (pData.sportType as string) || "golf",
-          tournamentId: tid || "",
-          tournamentName: tname || "",
-        });
-      }
+          name: (d.name as string) || "Unnamed Party",
+          createdBy: (d.createdBy as string) || "",
+          memberUids: (d.memberUids as string[]) || [],
+          sportType: (d.sportType as string) || "golf",
+          tournamentId: (d.tournamentId as string) || "",
+          tournamentName: (d.tournamentName as string) || "",
+        };
+      });
 
-      // Build sorted daily visits for chart
-      const dailyVisits = Object.entries(dailyBuckets)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, count]) => {
-          const d = new Date(date + "T12:00:00");
-          const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-          return { date, label, count };
-        });
-
-      const result: AnalyticsData = {
-        totalViews,
-        totalClicks,
-        uniqueUsers: Object.keys(byUser).length,
-        byPage,
-        byBrowser,
-        byTimezone,
-        dailyVisits,
-        byUser,
-        tournamentDocs,
-        tournamentNames: Object.fromEntries(tournamentNames),
-        systemHealth: {
-          userCount,
-          partyCount,
-          analyticsDocs: analyticsSnap.size,
-          estimatedDailyReads: estimateDailyReads(userCount, partyCount),
-          estimatedDailyWrites: estimateDailyWrites(userCount),
-        },
-        parties,
-        uidToName: Object.fromEntries(uidToName),
-        uidToEmail: Object.fromEntries(uidToEmail),
-      };
-
-      setData(result);
+      const result = buildPartyActivity(partyRecords, docs, uidToName, uidToEmail);
+      setParties(result);
 
       try {
-        sessionStorage.setItem("analytics_cache", JSON.stringify({ data: result, timestamp: Date.now() }));
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: result, timestamp: Date.now() }));
       } catch {
         // Storage full or unavailable - ignore
       }
@@ -494,6 +134,11 @@ export default function AnalyticsPage() {
     }
   }, [user, loading]);
 
+  const selected = useMemo(
+    () => (selectedId ? parties?.find((p) => p.id === selectedId) ?? null : null),
+    [selectedId, parties]
+  );
+
   // Not signed in - show login
   if (!loading && !user) {
     return (
@@ -501,7 +146,7 @@ export default function AnalyticsPage() {
         <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl text-center">
           <div className="mb-4 text-5xl">📊</div>
           <h1 className="mb-2 text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-sm text-gray-600 mb-6">Sign in to view site analytics. Admin access only.</p>
+          <p className="text-sm text-gray-600 mb-6">Sign in to view party analytics. Admin access only.</p>
           <button
             onClick={signInWithGoogle}
             className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-gray-400 hover:bg-gray-50"
@@ -539,418 +184,147 @@ export default function AnalyticsPage() {
   }
 
   // Loading
-  if (loading || fetching) {
+  if (loading || (fetching && !parties)) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
       </div>
     );
   }
 
-  if (!data) return null;
-
-  // Party filtering
-  const selectedParty = selectedPartyId !== "all"
-    ? data.parties.find((p) => p.id === selectedPartyId)
-    : null;
-  const partyMemberSet = selectedParty
-    ? new Set(selectedParty.memberUids)
-    : null;
-
-  // Filter byUser to selected party members, backfilling missing members with zeros
-  const emptyUserEntry = { email: null as string | null, views: 0, clicks: 0, lastVisit: "", pages: {} as Record<string, number>, dailyDates: {} as Record<string, number> };
-  const filteredByUser = partyMemberSet
-    ? Object.fromEntries(
-        Array.from(partyMemberSet).map((uid) => [
-          uid,
-          data.byUser[uid] || { ...emptyUserEntry, email: data.uidToEmail?.[uid] || null },
-        ])
-      )
-    : data.byUser;
-
-  // Recompute totals from filtered users
-  const filteredTotalViews = partyMemberSet
-    ? Object.values(filteredByUser).reduce((s, u) => s + u.views, 0)
-    : data.totalViews;
-  const filteredTotalClicks = partyMemberSet
-    ? Object.values(filteredByUser).reduce((s, u) => s + u.clicks, 0)
-    : data.totalClicks;
-  const filteredUniqueUsers = Object.keys(filteredByUser).length;
-
-  // Filter daily visits to selected party members
-  const filteredDailyVisits = partyMemberSet
-    ? (() => {
-        const buckets: Record<string, number> = {};
-        for (const info of Object.values(filteredByUser)) {
-          for (const [date, count] of Object.entries(info.dailyDates || {})) {
-            buckets[date] = (buckets[date] || 0) + count;
-          }
-        }
-        return Object.entries(buckets)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([date, count]) => {
-            const d = new Date(date + "T12:00:00");
-            const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-            return { date, label, count };
-          });
-      })()
-    : data.dailyVisits;
-
-  // Filter page breakdown to selected party members
-  const filteredByPage = partyMemberSet
-    ? (() => {
-        const pages: Record<string, number> = {};
-        for (const info of Object.values(filteredByUser)) {
-          for (const [page, count] of Object.entries(info.pages || {})) {
-            pages[page] = (pages[page] || 0) + count;
-          }
-        }
-        return pages;
-      })()
-    : data.byPage;
-
-  // Filter tournament docs to selected party members, backfilling missing members
-  const filteredTournamentDocs = (() => {
-    if (!partyMemberSet || !selectedParty) {
-      return data.tournamentDocs;
-    }
-
-    // Find the matching tournamentId by resolving the party's tournament name
-    // against the tournamentNames map (which maps analytics tournamentId -> name)
-    const matchingTournamentId = Object.entries(data.tournamentNames)
-      .find(([, name]) => name === selectedParty.tournamentName)?.[0];
-
-    // Filter docs to party members + matching tournament only
-    const existing = data.tournamentDocs.filter(
-      (td) => partyMemberSet.has(td.uid) && (!matchingTournamentId || td.tournamentId === matchingTournamentId)
-    );
-    const existingUids = new Set(existing.map((td) => td.uid));
-
-    // Backfill party members who have no tournament analytics
-    const backfillTournamentId = matchingTournamentId || selectedParty.tournamentId || "";
-    for (const uid of partyMemberSet) {
-      if (!existingUids.has(uid)) {
-        existing.push({
-          docId: `backfill_${uid}`,
-          uid,
-          tournamentId: backfillTournamentId,
-          email: data.uidToEmail?.[uid] || null,
-          totalViews: 0,
-          totalClicks: 0,
-          pages: {},
-          browsers: {},
-          lastVisit: "",
-        });
-      }
-    }
-    return existing;
-  })();
-
-  const userEntries = Object.entries(filteredByUser).sort((a, b) => (b[1].views + b[1].clicks) - (a[1].views + a[1].clicks));
-
-  // Group tournament docs by tournamentId
-  const tournamentGroups = new Map<string, TournamentAnalytics[]>();
-  for (const td of filteredTournamentDocs) {
-    const existing = tournamentGroups.get(td.tournamentId) || [];
-    existing.push(td);
-    tournamentGroups.set(td.tournamentId, existing);
-  }
+  if (!parties) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-8">
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:py-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">📊 Analytics</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {selectedParty ? `${selectedParty.name} (by ${selectedParty.creatorName})` : "All parties"}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Party Analytics</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {selected ? "Leaderboard engagement per member" : "Pick a party to see who's watching the leaderboard"}
             </p>
           </div>
           <button
             onClick={() => user?.email && fetchData(user.email, true)}
             disabled={fetching}
-            className="text-xs font-medium text-green-700 hover:text-green-600 transition-colors disabled:text-gray-400"
+            className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
           >
-            {fetching ? "Refreshing..." : "↻ Refresh"}
+            {fetching ? "Refreshing…" : "↻ Refresh"}
           </button>
         </div>
 
-        {/* Party selector */}
-        {data.parties.length > 0 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedPartyId("all")}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  selectedPartyId === "all"
-                    ? "bg-green-700 text-white"
-                    : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
-                }`}
-              >
-                All Parties
-              </button>
-              {data.parties.map((party) => {
-                const hasDuplicateName = data.parties.filter((p) => p.name === party.name).length > 1;
-                return (
+        {!selected ? (
+          /* ---------------- Party list ---------------- */
+          parties.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+              <div className="mb-2 text-4xl">🏌️</div>
+              <p className="text-sm text-gray-500">No parties yet.</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {parties.map((p) => (
+                <li key={p.id}>
                   <button
-                    key={party.id}
-                    onClick={() => setSelectedPartyId(party.id)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selectedPartyId === party.id
-                        ? "bg-green-700 text-white"
-                        : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
-                    }`}
+                    onClick={() => setSelectedId(p.id)}
+                    className="flex w-full items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-green-400 hover:shadow-md"
                   >
-                    {party.name}
-                    {hasDuplicateName && (
-                      <span className={`ml-1 ${selectedPartyId === party.id ? "text-green-200" : "text-gray-400"}`}>
-                        ({party.creatorName})
-                      </span>
-                    )}
-                    <span className={`ml-1 ${selectedPartyId === party.id ? "text-green-200" : "text-gray-400"}`}>
-                      · {party.memberUids.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-8 sm:grid-cols-4">
-          <StatCard label="Total Views" value={filteredTotalViews} />
-          <StatCard label="Total Clicks" value={filteredTotalClicks} />
-          <StatCard label="Unique Users" value={filteredUniqueUsers} />
-          <StatCard label="Analytics Docs" value={data.systemHealth.analyticsDocs} />
-        </div>
-
-        {/* Daily activity chart */}
-        <DailyChart data={filteredDailyVisits} />
-
-        {/* Breakdowns - 3 charts per row */}
-        <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
-          <BreakdownChart title="By Page" data={sortedEntries(filteredByPage)} color="bg-green-500" />
-          <BreakdownChart
-            title="By User"
-            data={userEntries.map(([uid, info]) => [info.email || data.uidToName?.[uid] || uid.slice(0, 12), info.views + info.clicks])}
-            color="bg-amber-500"
-          />
-          <BreakdownChart title="By Browser" data={sortedEntries(data.byBrowser)} color="bg-blue-500" />
-          <BreakdownChart title="By Timezone" data={sortedEntries(data.byTimezone)} color="bg-purple-500" />
-          <BreakdownChart
-            title="User Return Frequency (Days Active)"
-            data={userEntries.map(([uid, info]) => {
-              const dailyDays = Object.keys(info.dailyDates || {}).length;
-              return [info.email || data.uidToName?.[uid] || uid.slice(0, 12), dailyDays || (info.views > 0 ? 1 : 0)] as [string, number];
-            }).filter(([, d]) => d > 0).sort((a, b) => (b[1] as number) - (a[1] as number))}
-            color="bg-teal-500"
-          />
-        </div>
-
-        {/* Tables grid - 2 per row */}
-        <div className="grid gap-6 mb-8 sm:grid-cols-2">
-        {/* Per-user breakdown */}
-        {userEntries.length > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">By User</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left">
-                    <th className="px-4 py-2 font-medium text-gray-500">Email</th>
-                    <th className="px-4 py-2 font-medium text-gray-500 text-right">Views</th>
-                    <th className="px-4 py-2 font-medium text-gray-500 text-right">Clicks</th>
-                    <th className="px-4 py-2 font-medium text-gray-500 text-right">Last Visit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {userEntries.map(([uid, info]) => (
-                    <tr key={uid}>
-                      <td className="px-4 py-2.5 text-gray-700">{info.email || data.uidToName?.[uid] || uid}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-gray-900">{info.views}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-gray-900">{info.clicks}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-500">
-                        {info.lastVisit ? new Date(info.lastVisit).toLocaleString() : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* User x Page breakdown */}
-        {userEntries.length > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">User x Page Breakdown</h3>
-            </div>
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50">
-                  <tr className="text-left">
-                    <th className="px-4 py-2 font-medium text-gray-500">User</th>
-                    <th className="px-4 py-2 font-medium text-gray-500">Page</th>
-                    <th className="px-4 py-2 font-medium text-gray-500 text-right">Views</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {userEntries.flatMap(([uid, info]) => {
-                    const pages = info.pages || {};
-                    return Object.entries(pages)
-                      .filter(([, v]) => typeof v === "number")
-                      .sort((a, b) => (b[1] as number) - (a[1] as number))
-                      .map(([page, count], idx) => (
-                        <tr key={`${uid}-${page}-${idx}`}>
-                          <td className="px-4 py-2 text-gray-700 truncate max-w-[120px]">{info.email || data.uidToName?.[uid] || uid.slice(0, 12)}</td>
-                          <td className="px-4 py-2 text-gray-600 font-mono text-xs truncate max-w-[180px]">{page.startsWith("_") ? "/" + page.slice(1).replace(/_/g, "/") : page}</td>
-                          <td className="px-4 py-2 text-right font-medium text-gray-900">{count as number}</td>
-                        </tr>
-                      ));
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        </div>
-
-        {/* Tournament activity */}
-        {tournamentGroups.size > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-8">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">🏆 Tournament Activity</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Per-tournament engagement breakdown</p>
-            </div>
-            {Array.from(tournamentGroups.entries()).map(([tournamentId, docs]) => {
-              const tViews = docs.reduce((s, d) => s + d.totalViews, 0);
-              const tClicks = docs.reduce((s, d) => s + d.totalClicks, 0);
-              return (
-                <div key={tournamentId} className="border-b border-gray-100 last:border-b-0">
-                  <div className="flex items-center justify-between bg-gray-50 px-4 py-2">
-                    <span className="text-sm font-bold text-gray-900">
-                      {data.tournamentNames?.[tournamentId] || "Unknown Tournament"}
-                      <span className="ml-2 text-xs font-normal text-gray-400">#{tournamentId}</span>
-                    </span>
-                    <div className="flex gap-3 text-xs">
-                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 font-semibold text-green-800">{tViews} views</span>
-                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-semibold text-blue-800">{tClicks} clicks</span>
-                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 font-semibold text-gray-600">{docs.length} users</span>
+                    <div className="text-3xl">{sportIcon(p.sportType)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-gray-900">{p.name}</div>
+                      <div className="truncate text-xs text-gray-500">
+                        {p.tournamentName || "No tournament"} · by {p.creatorName}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-400">
+                        {p.activeCount}/{p.memberCount} active · last visit {formatRelativeTime(p.lastVisit)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left">
-                          <th className="px-4 py-1.5 text-xs font-medium text-gray-500">User</th>
-                          <th className="px-4 py-1.5 text-xs font-medium text-gray-500 text-right">Views</th>
-                          <th className="px-4 py-1.5 text-xs font-medium text-gray-500 text-right">Clicks</th>
-                          <th className="px-4 py-1.5 text-xs font-medium text-gray-500 text-right">Last Visit</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {docs.sort((a, b) => b.totalViews - a.totalViews).map((d) => (
-                          <tr key={d.docId}>
-                            <td className="px-4 py-2 text-gray-700">{d.email || data.uidToName?.[d.uid] || d.uid.slice(0, 12)}</td>
-                            <td className="px-4 py-2 text-right font-medium text-gray-900">{d.totalViews}</td>
-                            <td className="px-4 py-2 text-right font-medium text-gray-900">{d.totalClicks}</td>
-                            <td className="px-4 py-2 text-right text-xs text-gray-500">
-                              {d.lastVisit ? new Date(d.lastVisit).toLocaleString() : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-xl font-bold text-green-700">{p.totalViews}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-400">views</div>
+                    </div>
+                    <div className="shrink-0 text-gray-300">›</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          /* ---------------- Party detail ---------------- */
+          <div>
+            <button
+              onClick={() => setSelectedId(null)}
+              className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800"
+            >
+              ‹ All parties
+            </button>
+
+            <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">{sportIcon(selected.sportType)}</div>
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-bold text-gray-900">{selected.name}</h2>
+                  <p className="truncate text-xs text-gray-500">
+                    {selected.tournamentName || "No tournament"} · by {selected.creatorName}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* System Health / Capacity */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-8">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-800">🖥️ System Health &amp; Capacity</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Estimated usage vs free tier limits (Firestore + Vercel Hobby)</p>
-          </div>
-          <div className="p-4">
-            {/* Key metrics */}
-            <div className="grid grid-cols-2 gap-3 mb-4 sm:grid-cols-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gray-900">{data.systemHealth.userCount}</p>
-                <p className="text-xs text-gray-500">Registered Users</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gray-900">{data.systemHealth.partyCount}</p>
-                <p className="text-xs text-gray-500">Parties</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gray-900">{data.systemHealth.analyticsDocs}</p>
-                <p className="text-xs text-gray-500">Analytics Docs</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gray-900">{Math.ceil(data.systemHealth.userCount * 0.6)}</p>
-                <p className="text-xs text-gray-500">Est. Active/Day</p>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-xl bg-gray-50 py-3">
+                  <div className="text-lg font-bold text-gray-900">{selected.totalViews}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-gray-400">Total views</div>
+                </div>
+                <div className="rounded-xl bg-gray-50 py-3">
+                  <div className="text-lg font-bold text-gray-900">
+                    {selected.activeCount}/{selected.memberCount}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wide text-gray-400">Active</div>
+                </div>
+                <div className="rounded-xl bg-gray-50 py-3">
+                  <div className="text-lg font-bold text-gray-900">{formatRelativeTime(selected.lastVisit)}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-gray-400">Last visit</div>
+                </div>
               </div>
             </div>
 
-            {/* Capacity gauges */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <CapacityGauge
-                label="Firestore Reads/Day (estimated)"
-                current={data.systemHealth.estimatedDailyReads}
-                limit={LIMITS.firestoreReadsPerDay}
-                unit="reads"
-              />
-              <CapacityGauge
-                label="Firestore Writes/Day (estimated)"
-                current={data.systemHealth.estimatedDailyWrites}
-                limit={LIMITS.firestoreWritesPerDay}
-                unit="writes"
-              />
-              <CapacityGauge
-                label="Firestore Documents"
-                current={data.systemHealth.analyticsDocs + data.systemHealth.userCount + data.systemHealth.partyCount * 10}
-                limit={100_000}
-                unit="docs"
-                warningAt={0.5}
-              />
-              <CapacityGauge
-                label="Vercel Invocations/Month (estimated)"
-                current={estimateMonthlyVercelInvocations(data.systemHealth.userCount)}
-                limit={LIMITS.vercelInvocationsPerMonth}
-                unit="calls"
-              />
-            </div>
-
-            {/* Scaling notes */}
-            <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
-              <p className="text-xs font-semibold text-gray-700 mb-1">Capacity Notes</p>
-              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
-                <li><strong>~250 users:</strong> Firestore free tier reads may be exceeded during tournaments. Consider upgrading to Blaze plan.</li>
-                <li><strong>~500 users:</strong> Vercel Hobby invocation limit (100K/month) could be hit. Consider Vercel Pro.</li>
-                <li><strong>~1000 users:</strong> ESPN API may rate-limit. Server-side caching mitigates this, but monitor 502 errors in logs.</li>
-                <li><strong>Current plan:</strong> Firestore Spark (free) + Vercel Hobby (free). Both support current usage comfortably.</li>
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="grid grid-cols-12 gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                <div className="col-span-6">Member</div>
+                <div className="col-span-2 text-right">Views</div>
+                <div className="col-span-4 text-right">Last visit</div>
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {selected.members.map((m, i) => (
+                  <li key={m.uid} className="grid grid-cols-12 items-center gap-2 px-4 py-3">
+                    <div className="col-span-6 flex min-w-0 items-center gap-3">
+                      <span className="w-5 shrink-0 text-right text-xs font-medium text-gray-400">{i + 1}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-gray-900">{m.name}</div>
+                        {m.email && <div className="truncate text-xs text-gray-400">{m.email}</div>}
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <span
+                        className={`text-sm font-semibold ${m.views > 0 ? "text-green-700" : "text-gray-300"}`}
+                      >
+                        {m.views}
+                      </span>
+                    </div>
+                    <div className="col-span-4 text-right" title={exactTime(m.lastVisit)}>
+                      <span className={`text-xs ${m.lastVisit ? "text-gray-600" : "text-gray-300"}`}>
+                        {formatRelativeTime(m.lastVisit)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
               </ul>
             </div>
-          </div>
-        </div>
 
-        {/* Back link */}
-        <div className="text-center">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            ← Back to Dashboard
-          </button>
-        </div>
+            <p className="mt-3 text-center text-[11px] text-gray-400">
+              Views count how many times each member opened this party&apos;s leaderboard page.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

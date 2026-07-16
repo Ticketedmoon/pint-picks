@@ -195,7 +195,11 @@ describe("buildLeaderboardEntries", () => {
       wildcard2: null,
     };
     const allPicks: Record<string, Picks> = { uid1: picks };
-    const scores = [makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "finished" })];
+    // A cut player in the field signals the cut is in effect (post cut round).
+    const scores = [
+      makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "finished" }),
+      makeScore({ playerId: "z1", playerName: "Cut Player", scoreToPar: 10, status: "cut" }),
+    ];
 
     const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4);
     const uid1Entry = entries.find((e) => e.uid === "uid1")!;
@@ -204,6 +208,28 @@ describe("buildLeaderboardEntries", () => {
     expect(uid1Entry.picks[0].scoreToPar).toBe(4);
     expect(uid1Entry.picks[0].displayScore).toBe("+4");
     expect(uid1Entry.picks[0].actualDisplayScore).toBe("+8");
+  });
+
+  it("does not cap made-cut player before the cut is in effect (no cut players in field)", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    // R1/R2: ESPN publishes a projected cutScore but nobody is cut yet.
+    const scores = [makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "playing" })];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    // Not capped - real +8 stands, no CAP badge (actualDisplayScore unset)
+    expect(uid1Entry.picks[0].scoreToPar).toBe(8);
+    expect(uid1Entry.picks[0].displayScore).toBe("+8");
+    expect(uid1Entry.picks[0].actualDisplayScore).toBeUndefined();
   });
 
   it("does not set actualDisplayScore when player is below cutLine", () => {

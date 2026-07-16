@@ -29,7 +29,7 @@ function getAnalyticsDocId(uid: string, pathname: string): string {
 }
 
 const DEBOUNCE_MS = 5_000;
-const DEBOUNCE_KEY = "analytics_debounce_ts";
+const DEBOUNCE_PREFIX = "analytics_debounce_ts_";
 
 /**
  * Aggregate analytics into a single Firestore document per user context.
@@ -38,7 +38,12 @@ const DEBOUNCE_KEY = "analytics_debounce_ts";
  */
 function trackPageView(uid: string, email: string | null, pathname: string, collectionName: string, docId: string) {
   try {
-    const lastWrite = parseInt(sessionStorage.getItem(DEBOUNCE_KEY) || "0", 10);
+    // Debounce per destination doc, not globally. A single global key meant the
+    // general-doc write that fires while a party page is still loading (before
+    // tournamentId is known) would suppress the subsequent tournament-doc write,
+    // leaving that doc's totalViews / lastVisit stale.
+    const debounceKey = `${DEBOUNCE_PREFIX}${docId}`;
+    const lastWrite = parseInt(sessionStorage.getItem(debounceKey) || "0", 10);
     if (Date.now() - lastWrite < DEBOUNCE_MS) return;
 
     const db = getFirebaseDb();
@@ -57,7 +62,7 @@ function trackPageView(uid: string, email: string | null, pathname: string, coll
       lastPage: pathname,
       lastVisit: new Date().toISOString(),
     }, { merge: true })
-      .then(() => sessionStorage.setItem(DEBOUNCE_KEY, String(Date.now())))
+      .then(() => sessionStorage.setItem(debounceKey, String(Date.now())))
       .catch((err) => console.error("[Analytics] Write failed:", err));
   } catch {
     // Silently ignore

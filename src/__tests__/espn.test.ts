@@ -145,6 +145,20 @@ describe("calculateEffectiveScore", () => {
     expect(result.wasCapped).toBe(false);
   });
 
+  it("does not cap made-cut player when cut is not yet in effect (cutIsActive false)", () => {
+    const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 6, status: "playing" }), 4, false);
+    expect(result.effectiveScore).toBe(6);
+    expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(false);
+  });
+
+  it("still caps made-cut player when cut is in effect (cutIsActive true)", () => {
+    const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 6, status: "finished" }), 4, true);
+    expect(result.effectiveScore).toBe(4);
+    expect(result.penalty).toBe(0);
+    expect(result.wasCapped).toBe(true);
+  });
+
   it("does not cap playing player when no cutLine is provided", () => {
     const result = calculateEffectiveScore(makePlayerScore({ scoreToPar: 10, status: "playing" }));
     expect(result.effectiveScore).toBe(10);
