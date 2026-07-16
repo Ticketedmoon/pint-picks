@@ -42,13 +42,13 @@ export function TournamentLeaderboardModal({ scores, onClose }: TournamentLeader
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Tournament Leaderboard" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 sm:items-center sm:p-0" role="dialog" aria-modal="true" aria-label="Tournament Leaderboard" onClick={onClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" />
 
       {/* Modal */}
       <div
-        className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:max-w-lg sm:rounded-2xl"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-2xl bg-white shadow-2xl sm:max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

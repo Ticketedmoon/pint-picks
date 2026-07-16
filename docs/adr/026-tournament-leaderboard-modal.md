@@ -32,7 +32,7 @@ for scoring purposes, so no additional API call is needed.
   - Color-coded scores: red for under par, blue for over par, gray for even.
   - Cut/WD/DQ players are sorted to the bottom with status badges and strikethrough names.
   - No player headshots are loaded to keep the modal lightweight and fast.
-- **Mobile:** modal slides up as a bottom sheet (max 85vh height).
+- **Mobile:** modal slides up as a bottom sheet (max 85vh height), inset ~12px from the left, right, and bottom screen edges with all four corners rounded so it floats rather than sitting flush against the edges.
 - **Desktop:** modal is a centered card (max-width 32rem).
 - Closes via: clicking the backdrop, pressing Escape, or the X button.
 - Body scroll is locked while the modal is open.
