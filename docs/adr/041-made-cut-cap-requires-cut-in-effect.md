@@ -30,6 +30,8 @@ The cut-status penalty branch (`status === "cut"` -> `cutLine + 1`) is left as-i
 
 ### D2: Derive "cut is in effect" from the field, not the round number
 
+> **Superseded by [ADR-042](042-cut-in-effect-requires-cut-round-complete.md).** `scores.some(status === "cut")` proved too fragile: a single early `STATUS_CUT` (e.g. a withdrawal that never played the cut round) flipped the cap on mid-round against a still-moving projected cut line. ADR-042 replaces this with `isCutInEffect`, which requires the whole field to have finished the cut round. D1 (the `cutIsActive` parameter) still stands.
+
 `buildLeaderboardEntries` computes:
 
 ```ts

@@ -21,7 +21,7 @@ import {
 } from "@/lib/constants";
 import { formatScoreToPar } from "@/lib/sports/golf/espn";
 import { addInvites, deleteParty, getAllPicksForParty, getParty, getUsersInfo, leaveParty, updatePartyName, hasIncompleteOrNoPicks, getPicks, invalidatePreviousUnlocks, createPickUnlock } from "@/lib/firestore";
-import { buildLeaderboardEntries } from "@/lib/leaderboard";
+import { buildLeaderboardEntries, isCutInEffect } from "@/lib/leaderboard";
 import { calculatePayouts } from "@/lib/payouts";
 import { syncPartyStatus } from "@/lib/partySync";
 import { getSportConfig } from "@/lib/sports/registry";
@@ -98,7 +98,7 @@ function PartyContent() {
     setCutLine(cl);
     setCutRound(cr);
     setTournamentScores(scores);
-    return buildLeaderboardEntries(partyData, allPicks, usersInfo, scores, cl);
+    return buildLeaderboardEntries(partyData, allPicks, usersInfo, scores, cl, cr);
   };
 
   // Firestore rules only expose other members' picks once the party is
@@ -706,9 +706,24 @@ function PartyContent() {
               Round underway
             </span>
           )}
-          {cutLine != null && cutRound != null && cutRound > 0 && currentRound.currentRound >= cutRound && (
+          {cutLine != null && cutRound != null && cutRound > 0 && isCutInEffect(tournamentScores, cutRound) && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-4 py-2 text-xs sm:text-sm font-medium text-red-800 shadow-sm">
               ✂️ Cut line: {formatScoreToPar(cutLine)} (cut players score {formatScoreToPar(cutLine + 1)})
+            </span>
+          )}
+          {cutLine != null && cutRound != null && cutRound > 0 && !isCutInEffect(tournamentScores, cutRound) && (
+            <span
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 text-xs sm:text-sm font-medium text-amber-900 shadow-sm"
+              title={`Projected cut line. ESPN updates this throughout Round ${cutRound}; it is not final until the round ends.`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              </span>
+              <span className="font-semibold">Projected cut</span>
+              <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 font-bold tabular-nums text-amber-900">
+                {formatScoreToPar(cutLine)}
+              </span>
             </span>
           )}
           {cutRound === 0 && (

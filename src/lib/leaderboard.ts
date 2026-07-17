@@ -14,6 +14,54 @@ function buildRoundScoresToPar(roundScores: string[] | undefined): string[] | un
 }
 
 /**
+ * A per-round linescore is "real" once ESPN has posted an actual value. ESPN
+ * keeps a placeholder ("-") for rounds not yet played, so anything blank or "-"
+ * means that round has not produced a score yet.
+ */
+function isRealRoundScore(value: string | undefined): boolean {
+  return value != null && value !== "-" && value.trim() !== "";
+}
+
+/**
+ * Whether a player has *finished* at least `roundNum` full rounds. ESPN posts a
+ * running value for the round in progress, so a player mid-way through the cut
+ * round would have a real value for it while still being "playing". Only treat
+ * the round as complete once the player has moved past it (a later round has a
+ * real score) or their current round is finished.
+ */
+function hasCompletedRound(score: PlayerScore, roundNum: number): boolean {
+  const completed = (score.roundScores ?? []).filter(isRealRoundScore).length;
+  if (completed > roundNum) return true;
+  if (completed === roundNum) return score.status === "finished";
+  return false;
+}
+
+/**
+ * Whether the cut is actually *final*, i.e. the cut round is complete for the
+ * whole field and ESPN has applied the cut.
+ *
+ * ESPN publishes a *projected* `cutScore` (and can flag the odd early
+ * `STATUS_CUT` for a withdrawal) while the cut round is still being played, so
+ * "at least one player is cut" on its own flips scoring on too early, against a
+ * cut line that is still moving. Require every remaining player to have finished
+ * the cut round, plus at least one genuine cut, before treating the cut as live.
+ */
+export function isCutInEffect(scores: PlayerScore[], cutRound?: number | null): boolean {
+  const cutRoundNum = cutRound ?? 0;
+  if (cutRoundNum <= 0 || scores.length === 0) return false;
+
+  const cutRoundComplete = scores.every(
+    (s) =>
+      s.status === "cut" ||
+      s.status === "wd" ||
+      s.status === "dq" ||
+      hasCompletedRound(s, cutRoundNum),
+  );
+
+  return cutRoundComplete && scores.some((s) => s.status === "cut");
+}
+
+/**
  * Normalize a player name for matching: lowercase, strip diacritics, and
  * collapse whitespace. Ensures picks stored as "Ludvig Aberg" match ESPN's
  * "Ludvig Åberg" (and similar accented names) when IDs don't line up.
@@ -33,16 +81,17 @@ export function buildLeaderboardEntries(
   usersInfo: Record<string, { displayName: string; photoURL?: string }>,
   scores: PlayerScore[],
   cutLine?: number | null,
+  cutRound?: number | null,
 ): LeaderboardEntry[] {
   const sport = getSportConfig(party.sportType);
   const scoreByIdMap = new Map<string, PlayerScore>();
   const scoreByNameMap = new Map<string, PlayerScore>();
 
-  // The cut is only in effect once ESPN has actually cut players from the
-  // field (after the cut round). ESPN publishes a projected cutScore during
-  // R1/R2, but no player carries "cut" status until the cut is applied, so
-  // this is a reliable signal that avoids capping made-cut players too early.
-  const cutIsActive = scores.some((s) => s.status === "cut");
+  // The cut is only in effect once ESPN has actually cut the field AND the cut
+  // round is complete. ESPN publishes a projected cutScore during R1/R2 and can
+  // flag an early withdrawal as STATUS_CUT, so we require the whole field to
+  // have finished the cut round before capping made-cut players. See ADR-042.
+  const cutIsActive = isCutInEffect(scores, cutRound);
 
   scores.forEach((score) => {
     scoreByIdMap.set(score.playerId, score);

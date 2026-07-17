@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLeaderboardEntries } from "@/lib/leaderboard";
+import { buildLeaderboardEntries, isCutInEffect } from "@/lib/leaderboard";
 import type { Party, Picks, PlayerScore } from "@/types";
 import { mockParty, completePicks } from "./helpers";
 
@@ -195,19 +195,47 @@ describe("buildLeaderboardEntries", () => {
       wildcard2: null,
     };
     const allPicks: Record<string, Picks> = { uid1: picks };
-    // A cut player in the field signals the cut is in effect (post cut round).
+    // Cut round (2) is complete: the made-cut player has finished both rounds
+    // and at least one player is cut, so the cut is in effect.
     const scores = [
-      makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "finished" }),
+      makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "finished", roundScores: ["+4", "+4"] }),
       makeScore({ playerId: "z1", playerName: "Cut Player", scoreToPar: 10, status: "cut" }),
     ];
 
-    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4);
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4, 2);
     const uid1Entry = entries.find((e) => e.uid === "uid1")!;
 
     // Capped at cutLine (4), not actual score (8)
     expect(uid1Entry.picks[0].scoreToPar).toBe(4);
     expect(uid1Entry.picks[0].displayScore).toBe("+4");
     expect(uid1Entry.picks[0].actualDisplayScore).toBe("+8");
+  });
+
+  it("does not cap made-cut player while the cut round is still being played", () => {
+    const picks: Picks = {
+      groupA: { playerId: "a1", playerName: "Player A" },
+      groupB: null,
+      groupC: null,
+      groupD: null,
+      wildcard1: null,
+      wildcard2: null,
+    };
+    const allPicks: Record<string, Picks> = { uid1: picks };
+    // The cut round (2) is NOT complete: Player A has only finished R1 and is
+    // still playing R2. ESPN has flagged one early withdrawal as "cut" and is
+    // publishing a projected cut line, but the cut is not final yet.
+    const scores = [
+      makeScore({ playerId: "a1", playerName: "Player A", scoreToPar: 8, status: "playing", roundScores: ["+4", "+4"] }),
+      makeScore({ playerId: "z1", playerName: "Early WD", scoreToPar: 10, status: "cut", roundScores: ["+5", "-"] }),
+    ];
+
+    const entries = buildLeaderboardEntries(party, allPicks, usersInfo, scores, 4, 2);
+    const uid1Entry = entries.find((e) => e.uid === "uid1")!;
+
+    // Not capped - the projected cut line must not apply mid cut-round.
+    expect(uid1Entry.picks[0].scoreToPar).toBe(8);
+    expect(uid1Entry.picks[0].displayScore).toBe("+8");
+    expect(uid1Entry.picks[0].actualDisplayScore).toBeUndefined();
   });
 
   it("does not cap made-cut player before the cut is in effect (no cut players in field)", () => {
@@ -341,3 +369,63 @@ describe("buildLeaderboardEntries", () => {
     expect(uid1Entry.picks[0].displayScore).toBe("-");
   });
 });
+
+describe("isCutInEffect", () => {
+  it("returns false when there is no cut round (cutRound null or 0)", () => {
+    const scores = [makeScore({ status: "cut" })];
+    expect(isCutInEffect(scores, null)).toBe(false);
+    expect(isCutInEffect(scores, 0)).toBe(false);
+    expect(isCutInEffect(scores, undefined)).toBe(false);
+  });
+
+  it("returns false for an empty field", () => {
+    expect(isCutInEffect([], 2)).toBe(false);
+  });
+
+  it("returns false when nobody is cut yet, even if the round is complete", () => {
+    const scores = [
+      makeScore({ playerId: "a", status: "finished", roundScores: ["+1", "+1"] }),
+      makeScore({ playerId: "b", status: "finished", roundScores: ["-2", "-1"] }),
+    ];
+    expect(isCutInEffect(scores, 2)).toBe(false);
+  });
+
+  it("returns false while a player is still mid cut-round", () => {
+    const scores = [
+      // running R2 value but status still playing => not finished the round
+      makeScore({ playerId: "a", status: "playing", roundScores: ["+1", "+2"] }),
+      makeScore({ playerId: "z", status: "cut", roundScores: ["+6", "-"] }),
+    ];
+    expect(isCutInEffect(scores, 2)).toBe(false);
+  });
+
+  it("returns false while a player has not yet teed off the cut round", () => {
+    const scores = [
+      // R2 is a placeholder "-" => cut round not complete for this player
+      makeScore({ playerId: "a", status: "playing", roundScores: ["+1", "-"] }),
+      makeScore({ playerId: "z", status: "cut", roundScores: ["+6", "-"] }),
+    ];
+    expect(isCutInEffect(scores, 2)).toBe(false);
+  });
+
+  it("returns true once the cut round is complete for the whole field", () => {
+    const scores = [
+      makeScore({ playerId: "a", status: "finished", roundScores: ["+1", "+1"] }),
+      // moved into R3 already
+      makeScore({ playerId: "b", status: "playing", roundScores: ["-2", "-1", "E"] }),
+      makeScore({ playerId: "z", status: "cut", roundScores: ["+6", "+6"] }),
+    ];
+    expect(isCutInEffect(scores, 2)).toBe(true);
+  });
+
+  it("ignores wd/dq players when checking cut-round completion", () => {
+    const scores = [
+      makeScore({ playerId: "a", status: "finished", roundScores: ["+1", "+1"] }),
+      makeScore({ playerId: "w", status: "wd", roundScores: ["+3", "-"] }),
+      makeScore({ playerId: "d", status: "dq", roundScores: ["+2", "-"] }),
+      makeScore({ playerId: "z", status: "cut", roundScores: ["+6", "+6"] }),
+    ];
+    expect(isCutInEffect(scores, 2)).toBe(true);
+  });
+});
+
