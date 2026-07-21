@@ -244,12 +244,13 @@ describe("footballConfig", () => {
     expect(result.lockTime).toBe(new Date(futureDate).getTime());
   });
 
-  it("fetchTournamentStatus returns in after start date", async () => {
+  it("fetchTournamentStatus returns in when tournament is ongoing", async () => {
     const { fetchFootballLeagueStatus } = await import("@/lib/sports/football/espn");
     vi.mocked(fetchFootballLeagueStatus).mockResolvedValue("in");
 
     const pastDate = new Date(Date.now() - 86400000).toISOString(); // 1 day ago
-    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate };
+    // Use a league with no configured endDate so ESPN's status decides.
+    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate, leagueSlug: "unknown.league" };
     const result = await footballConfig.fetchTournamentStatus(party);
 
     expect(result.status).toBe("in");
@@ -260,20 +261,43 @@ describe("footballConfig", () => {
     vi.mocked(fetchFootballLeagueStatus).mockResolvedValue("post");
 
     const pastDate = new Date(Date.now() - 86400000).toISOString();
-    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate, leagueSlug: "fifa.world" };
+    // No configured endDate, so ESPN's "post" status drives the transition.
+    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate, leagueSlug: "unknown.league" };
     const result = await footballConfig.fetchTournamentStatus(party);
 
     expect(result.status).toBe("post");
   });
 
-  it("fetchTournamentStatus falls back to config endDate on ESPN error", async () => {
+  it("fetchTournamentStatus returns post when config endDate has passed even if ESPN reports in", async () => {
+    const { fetchFootballLeagueStatus } = await import("@/lib/sports/football/espn");
+    // ESPN's season window extends past the final (e.g. WC season ends Dec 31),
+    // so it can still report "in" after the tournament is actually over.
+    vi.mocked(fetchFootballLeagueStatus).mockResolvedValue("in");
+
+    // World Cup config endDate is 2026-07-19; start it just after that so we are
+    // unambiguously past the final regardless of the real current date.
+    const party = {
+      ...mockParty,
+      sportType: "football" as const,
+      tournamentStartDate: "2026-07-20T00:00:00Z",
+      leagueSlug: "fifa.world",
+    };
+    // Clear any prior call history so the not-called assertion is reliable.
+    vi.mocked(fetchFootballLeagueStatus).mockClear();
+    const result = await footballConfig.fetchTournamentStatus(party);
+
+    expect(result.status).toBe("post");
+    // ESPN should not even be consulted once the config end date has passed.
+    expect(fetchFootballLeagueStatus).not.toHaveBeenCalled();
+  });
+
+  it("fetchTournamentStatus returns in on ESPN error when no config endDate has passed", async () => {
     const { fetchFootballLeagueStatus } = await import("@/lib/sports/football/espn");
     vi.mocked(fetchFootballLeagueStatus).mockRejectedValue(new Error("API error"));
 
-    // Use a past start date so we get past the "pre" check, and the config endDate is in the past
     const pastDate = new Date(Date.now() - 86400000).toISOString();
-    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate, leagueSlug: "fifa.world" };
-    // World Cup endDate is 2026-07-19, which is in the future, so this should return "in"
+    // Unknown league has no config endDate, and ESPN throws, so we default to "in".
+    const party = { ...mockParty, sportType: "football" as const, tournamentStartDate: pastDate, leagueSlug: "unknown.league" };
     const result = await footballConfig.fetchTournamentStatus(party);
 
     expect(result.status).toBe("in");

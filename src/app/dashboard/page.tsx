@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPartiesForUser, getAllParties, deleteParty } from "@/lib/firestore";
+import { syncPartyStatus } from "@/lib/partySync";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardSkeleton } from "@/components/Skeletons";
@@ -205,19 +206,40 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     setLoading(true);
     setParties([]);
     const fetcher = godMode ? getAllParties() : getPartiesForUser(user.uid);
     fetcher.then((p) => {
+      if (cancelled) return;
       const filtered = p.filter((party) => (party.sportType || "golf") === sport);
       filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // Show stored data immediately for a fast paint.
       setParties(filtered);
+      setLoading(false);
+
+      // Reconcile each party's status against the live tournament state so the
+      // Active/Past buckets stay correct even if nobody has opened the party
+      // page. A finished tournament (e.g. ESPN's season window still says "in"
+      // long after the final) is caught here. Persistence is gated to the party
+      // creator by Firestore rules; non-creators still get the corrected
+      // in-memory status for display.
+      Promise.all(
+        filtered.map((party) =>
+          syncPartyStatus(party, { canPersist: user.uid === party.createdBy }).catch(() => party),
+        ),
+      ).then((synced) => {
+        if (!cancelled) setParties(synced);
+      });
     }).catch(() => {
       // Fetch failed, show empty state rather than infinite skeleton
+      if (cancelled) return;
       setParties([]);
-    }).finally(() => {
       setLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [user, sport, godMode]);
 
   const handleDelete = async (partyId: string) => {

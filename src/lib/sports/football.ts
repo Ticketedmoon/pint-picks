@@ -118,7 +118,8 @@ export const footballConfig: SportConfig = {
   hasMatchBreakdown: true,
   hasThruProgress: false,
 
-  // Sync: uses ESPN season end date for "post", tournamentStartDate for lock
+  // Sync: uses the config end date as the authoritative "post" signal, with
+  // ESPN's season status as a secondary check. tournamentStartDate drives the lock.
   async fetchTournamentStatus(party: Party): Promise<TournamentStatus> {
     const startTime = new Date(party.tournamentStartDate).getTime();
     const now = Date.now();
@@ -127,24 +128,31 @@ export const footballConfig: SportConfig = {
       return { status: "pre", lockTime: startTime };
     }
 
-    // Try to get the end date from ESPN for accurate "post" detection
+    const leagueSlug = party.leagueSlug || "fifa.world";
+    const config = FOOTBALL_LEAGUES[leagueSlug];
+
+    // The config end date is the true tournament-final date and is the most
+    // reliable "post" signal. ESPN's season window often extends far beyond the
+    // final (e.g. the FIFA World Cup season endDate is Dec 31, months after the
+    // July final), so a season-based check alone leaves parties stuck as "in"
+    // long after the tournament is over. Trust the config end date first.
+    if (config?.endDate) {
+      const endTime = new Date(config.endDate).getTime();
+      if (now > endTime) {
+        return { status: "post", lockTime: startTime };
+      }
+    }
+
+    // No config end date has passed yet: fall back to ESPN's season status for
+    // leagues without a configured end date, or to catch an early finish.
     try {
-      const leagueSlug = party.leagueSlug || "fifa.world";
       const { fetchFootballLeagueStatus } = await import("@/lib/sports/football/espn");
       const leagueStatus = await fetchFootballLeagueStatus(leagueSlug);
       if (leagueStatus === "post") {
         return { status: "post", lockTime: startTime };
       }
     } catch {
-      // Fall back to config end date if ESPN call fails
-      const leagueSlug = party.leagueSlug || "fifa.world";
-      const config = FOOTBALL_LEAGUES[leagueSlug];
-      if (config?.endDate) {
-        const endTime = new Date(config.endDate).getTime();
-        if (now > endTime) {
-          return { status: "post", lockTime: startTime };
-        }
-      }
+      // ESPN unavailable; the config end-date check above already handles "post".
     }
 
     return { status: "in", lockTime: startTime };
